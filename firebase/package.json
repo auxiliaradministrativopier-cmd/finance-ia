@@ -1,0 +1,21 @@
+{
+  "name": "@finance-ia/firebase",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Security Rules, \u00edndices e testes das regras do Firebase.",
+  "type": "module",
+  "scripts": {
+    "test:rules": "firebase emulators:exec --project demo-finance-ia --only firestore,storage \"vitest run\"",
+    "emulators": "firebase emulators:start --project demo-finance-ia",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@finance-ia/config": "workspace:*",
+    "@firebase/rules-unit-testing": "5.0.2",
+    "@types/node": "22.20.5",
+    "firebase": "12.19.0",
+    "firebase-tools": "15.35.0",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12"
+  }
+}

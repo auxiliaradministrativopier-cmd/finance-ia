@@ -1,0 +1,28 @@
+{
+  "name": "finance-ia",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Finance IA: aplicativo de finan\u00e7as pessoais com intelig\u00eancia artificial.",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev --filter=@finance-ia/web",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "check": "turbo run lint typecheck test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "emulators": "pnpm --filter @finance-ia/firebase emulators",
+    "test:rules": "pnpm --filter @finance-ia/firebase test:rules"
+  },
+  "devDependencies": {
+    "prettier": "3.9.10",
+    "prettier-plugin-tailwindcss": "0.8.1",
+    "turbo": "2.11.10",
+    "typescript": "5.9.3"
+  }
+}

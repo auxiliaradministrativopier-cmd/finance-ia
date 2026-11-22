@@ -1,0 +1,5 @@
+{
+  "extends": "@finance-ia/config/typescript/base.json",
+  "compilerOptions": { "types": ["node"] },
+  "include": ["tests"]
+}

@@ -1,0 +1,485 @@
+rules_version = '2';
+
+// Finance IA: Security Rules do Firestore.
+// Modelo de dados v1.0. Cada módulo adiciona suas coleções aqui, sempre com testes em firebase/tests.
+// Tudo o que não tem regra explícita é negado.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Funções auxiliares ----------
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isString(value, min, max) {
+      return value is string && value.size() >= min && value.size() <= max;
+    }
+
+    function optionalString(data, key, max) {
+      return !(key in data) || data[key] == null || isString(data[key], 0, max);
+    }
+
+    // createdAt é definido na criação e nunca muda; updatedAt acompanha toda escrita.
+    function validStampsOnCreate() {
+      return incoming().createdAt == request.time && incoming().updatedAt == request.time;
+    }
+
+    function validStampsOnUpdate() {
+      return incoming().createdAt == resource.data.createdAt && incoming().updatedAt == request.time;
+    }
+
+    function changedKeys() {
+      return incoming().diff(resource.data).affectedKeys();
+    }
+
+    // ---------- Catálogos públicos (escritos apenas pelo servidor) ----------
+    match /catalogCategories/{id} {
+      allow read: if signedIn();
+    }
+    match /institutions/{id} {
+      allow read: if signedIn();
+    }
+    match /plans/{id} {
+      allow read: if true;
+    }
+    match /educationContent/{id} {
+      allow read: if signedIn();
+    }
+
+    // ---------- Usuário ----------
+    function validOnboarding(value) {
+      return value is map
+        && value.keys().hasOnly(['completed', 'step', 'completedAt'])
+        && value.completed is bool
+        && value.step is int && value.step >= 0 && value.step <= 10;
+    }
+
+    function validConsents(value) {
+      return value is map
+        && value.keys().hasOnly(['termsVersion', 'privacyVersion', 'acceptedAt'])
+        && isString(value.termsVersion, 1, 20)
+        && isString(value.privacyVersion, 1, 20)
+        && value.acceptedAt == request.time;
+    }
+
+    function validUserFields(data) {
+      return data.keys().hasOnly([
+          'displayName', 'email', 'photoUrl', 'occupationType', 'incomeRange', 'financialProfile',
+          'onboarding', 'consents', 'deletionRequestedAt', 'createdAt', 'updatedAt', 'schemaVersion'
+        ])
+        && isString(data.displayName, 2, 80)
+        && optionalString(data, 'photoUrl', 500)
+        && (!('occupationType' in data) || data.occupationType in
+            ['clt', 'autonomo', 'mei', 'servidor', 'empresario', 'estudante', 'aposentado', 'outro'])
+        && (!('incomeRange' in data) || data.incomeRange in
+            ['ate_2k', '2k_5k', '5k_10k', '10k_20k', 'acima_20k'])
+        && (!('financialProfile' in data) || data.financialProfile in
+            ['conservador', 'moderado', 'arrojado'])
+        && validOnboarding(data.onboarding)
+        && data.schemaVersion is int;
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+
+      allow create: if isOwner(uid)
+        && validUserFields(incoming())
+        && incoming().email == request.auth.token.email
+        && validConsents(incoming().consents)
+        && validStampsOnCreate();
+
+      // plan, ifa e lastActiveAt são escritos apenas pelas Cloud Functions;
+      // e-mail e consentimentos mudam somente por fluxos do servidor.
+      allow update: if isOwner(uid)
+        && validUserFields(incoming())
+        && validStampsOnUpdate()
+        && !changedKeys().hasAny(['email', 'consents', 'createdAt', 'plan', 'ifa', 'lastActiveAt']);
+
+      // A exclusão da conta é feita pela Cloud Function deleteUserData (LGPD).
+      allow delete: if false;
+
+      // ---------- Configurações (documento único) ----------
+      function validPreferences(data) {
+        return data.keys().hasOnly([
+            'theme', 'locale', 'currency', 'timezone', 'hideValues', 'monthStartDay',
+            'defaultAccountId', 'notifications', 'ai', 'security', 'privacy',
+            'createdAt', 'updatedAt', 'schemaVersion'
+          ])
+          && data.theme in ['system', 'light', 'dark']
+          && data.locale == 'pt-BR'
+          && data.currency == 'BRL'
+          && isString(data.timezone, 1, 64)
+          && data.hideValues is bool
+          && data.monthStartDay is int && data.monthStartDay >= 1 && data.monthStartDay <= 28
+          && optionalString(data, 'defaultAccountId', 64)
+          && data.notifications is map
+          && data.ai is map
+          && data.security is map
+          && data.privacy is map
+          && data.schemaVersion is int;
+      }
+
+      match /settings/{docId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid) && docId == 'preferences'
+          && validPreferences(incoming()) && validStampsOnCreate();
+        allow update: if isOwner(uid) && docId == 'preferences'
+          && validPreferences(incoming()) && validStampsOnUpdate();
+        allow delete: if false;
+      }
+
+      // ---------- Dispositivos (tokens de push) ----------
+      match /devices/{deviceId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && incoming().keys().hasOnly(['fcmToken', 'platform', 'deviceLabel', 'lastSeenAt', 'createdAt', 'updatedAt', 'schemaVersion'])
+          && isString(incoming().fcmToken, 10, 4096)
+          && incoming().platform in ['web', 'android', 'ios']
+          && optionalString(incoming(), 'deviceLabel', 80)
+          && incoming().lastSeenAt == request.time
+          && incoming().updatedAt == request.time;
+      }
+
+      // =====================================================================
+      // Entidades cadastradas pelo usuário (Modelo de Dados, seção 4)
+      // Regras comuns: só o dono; lista fechada de campos; carimbos de data
+      // do servidor; exclusão sempre lógica (deletedAt); campos calculados
+      // pelas Cloud Functions protegidos contra escrita do app.
+      // =====================================================================
+
+      function money(v) { return v is int && v >= 0 && v <= 100000000000; }
+      function positiveMoney(v) { return money(v) && v > 0; }
+      function signedMoney(v) { return v is int && v >= -100000000000 && v <= 100000000000; }
+      function dateStr(v) { return v is string && v.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'); }
+      function monthStr(v) { return v is string && v.matches('^[0-9]{4}-(0[1-9]|1[0-2])$'); }
+      function nullOr(v, valid) { return v == null || valid; }
+      function idOrNull(d, k) { return d.get(k, null) == null || isString(d[k], 1, 64); }
+      function dateOrNull(d, k) { return d.get(k, null) == null || dateStr(d[k]); }
+      function moneyOrNull(d, k) { return d.get(k, null) == null || money(d[k]); }
+      function rateOrNull(d, k, max) { return d.get(k, null) == null || (d[k] is number && d[k] >= 0 && d[k] <= max); }
+      function chartColor(v) { return v in ['chart-1', 'chart-2', 'chart-3', 'chart-4', 'chart-5', 'chart-6']; }
+
+      // Carimbos e exclusão lógica.
+      function entityCreate(d) {
+        return d.createdAt == request.time && d.updatedAt == request.time
+          && d.get('deletedAt', null) == null && d.schemaVersion is int;
+      }
+      function entityUpdate(d) {
+        return d.createdAt == resource.data.createdAt && d.updatedAt == request.time
+          && (d.get('deletedAt', null) == null || d.deletedAt is timestamp)
+          && d.schemaVersion == resource.data.schemaVersion;
+      }
+      // Campos calculados pelo servidor: o app não cria nem altera.
+      function serverOnly(fields) {
+        return request.method == 'create'
+          ? !incoming().keys().hasAny(fields)
+          : !changedKeys().hasAny(fields);
+      }
+      function meta() { return ['createdAt', 'updatedAt', 'deletedAt', 'schemaVersion']; }
+
+      function entityRules(valid, allowed, serverFields) {
+        return valid
+          && incoming().keys().hasOnly(allowed.concat(serverFields).concat(meta()))
+          && serverOnly(serverFields)
+          && (request.method == 'create' ? entityCreate(incoming()) : entityUpdate(incoming()));
+      }
+
+      // ---------- Categorias ----------
+      function validCategory(d) {
+        return isString(d.name, 1, 40)
+          && d.type in ['income', 'expense']
+          && isString(d.icon, 1, 40)
+          && chartColor(d.color)
+          && idOrNull(d, 'parentId') && idOrNull(d, 'catalogId')
+          && d.essential is bool && d.archived is bool
+          && d.order is int && d.order >= 0 && d.order <= 10000;
+      }
+      match /categories/{id} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid) && entityRules(validCategory(incoming()),
+          ['name', 'type', 'icon', 'color', 'parentId', 'catalogId', 'essential', 'archived', 'order'], []);
+        allow delete: if false;
+      }
+
+      // ---------- Contas bancárias ----------
+      function validAccount(d) {
+        return isString(d.name, 1, 60)
+          && d.type in ['checking', 'savings', 'wallet', 'benefit', 'digital', 'other']
+          && (d.get('institutionName', null) == null || isString(d.institutionName, 1, 60))
+          && chartColor(d.color) && isString(d.icon, 1, 40)
+          && signedMoney(d.initialBalance) && dateStr(d.initialBalanceDate)
+          && moneyOrNull(d, 'overdraftLimit')
+          && d.includeInTotal is bool && d.archived is bool
+          && d.order is int && d.order >= 0 && d.order <= 10000;
+      }
+      match /accounts/{id} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid) && entityRules(validAccount(incoming()),
+          ['name', 'type', 'institutionName', 'color', 'icon', 'initialBalance', 'initialBalanceDate',
+           'overdraftLimit', 'includeInTotal', 'archived', 'order'],
+          ['currentBalance', 'projectedBalance']);
+        allow delete: if false;
+      }
+
+      // ---------- Cartões ----------
+      function validCard(d) {
+        return isString(d.name, 1, 60)
+          && (d.get('institutionName', null) == null || isString(d.institutionName, 1, 60))
+          && d.brand in ['visa', 'mastercard', 'elo', 'amex', 'hipercard', 'other']
+          && (d.get('lastFour', null) == null || (d.lastFour is string && d.lastFour.matches('^[0-9]{4}$')))
+          && positiveMoney(d.limit)
+          && d.closingDay is int && d.closingDay >= 1 && d.closingDay <= 31
+          && d.dueDay is int && d.dueDay >= 1 && d.dueDay <= 31
+          && idOrNull(d, 'paymentAccountId')
+          && chartColor(d.color) && d.archived is bool;
+      }
+      match /cards/{id} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid) && entityRules(validCard(incoming()),
+          ['name', 'institutionName', 'brand', 'lastFour', 'limit', 'closingDay', 'dueDay', 'paymentAccountId',
+           'color', 'archived'],
+          ['usedLimit', 'availableLimit', 'currentInvoiceMonth']);
+        allow delete: if false;
+        // Faturas: calculadas pelas Cloud Functions.
+        match /invoices/{month} { allow read: if isOwner(uid); }
+      }
+
+      // ---------- Lançamentos: receitas, despesas e transferências ----------
+      function validTransaction(d) {
+        return d.type in ['income', 'expense', 'transfer']
+          && d.status in ['paid', 'pending', 'scheduled']
+          && positiveMoney(d.amount)
+          && d.currency == 'BRL'
+          && isString(d.description, 1, 120)
+          && dateStr(d.date) && monthStr(d.month)
+          && (d.status != 'paid' || d.paidAt is timestamp)
+          && (d.get('paidAt', null) == null || d.paidAt is timestamp)
+          && idOrNull(d, 'accountId') && idOrNull(d, 'cardId') && idOrNull(d, 'toAccountId')
+          && idOrNull(d, 'categoryId') && idOrNull(d, 'installmentPlanId') && idOrNull(d, 'recurrenceId')
+          && (d.get('invoiceMonth', null) == null || monthStr(d.invoiceMonth))
+          && d.tags is list && d.tags.size() <= 10
+          && d.attachments is list && d.attachments.size() <= 5
+          && (d.get('notes', null) == null || isString(d.notes, 0, 500))
+          && d.source in ['manual', 'recurrence', 'installment', 'import', 'open_finance', 'ai']
+          && isString(d.clientRequestId, 8, 64)
+          // Regras por tipo (as mesmas do app).
+          && (d.type != 'income' || (d.get('accountId', null) != null && d.get('cardId', null) == null))
+          && (d.type != 'expense' || ((d.get('accountId', null) != null) != (d.get('cardId', null) != null)))
+          && (d.get('cardId', null) == null || d.get('invoiceMonth', null) != null)
+          && (d.type != 'transfer'
+              || (d.get('toAccountId', null) != null && d.get('accountId', null) != null
+                  && d.toAccountId != d.accountId && d.get('categoryId', null) == null))
+          && (d.type == 'transfer' || d.get('categoryId', null) != null);
+      }
+      match /transactions/{id} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid) && entityRules(validTransaction(incoming()),
+          ['type', 'status', 'amount', 'currency', 'description', 'date', 'month', 'paidAt', 'accountId', 'cardId',
+           'invoiceMonth', 'toAccountId', 'categoryId', 'categoryName', 'categoryIcon', 'categoryColor',
+           'installmentPlanId', 'installmentNumber', 'installmentTotal', 'recurrenceId', 'linkedEntity', 'tags',
+           'notes', 'attachments', 'source', 'clientRequestId'],
+          ['ai']);
+        allow delete: if false;
+      }
+
+      // ---------- Metas ----------
+      function validGoal(d) {
+        return isString(d.name, 1, 60) && isString(d.icon, 1, 40) && chartColor(d.color)
+          && d.type in ['emergency_reserve', 'purchase', 'travel', 'education', 'retirement', 'debt_payoff', 'other']
+          && positiveMoney(d.targetAmount)
+          && dateOrNull(d, 'targetDate')
+          && d.priority is int && d.priority >= 1 && d.priority <= 5
+          && d.linkedInvestmentIds is list && d.linkedInvestmentIds.size() <= 10
+          && d.status in ['active', 'paused', 'canceled', 'achieved']
+          // "achieved" é definido pelo servidor ao atingir 100%.
+          && (request.method != 'create' || d.status != 'achieved')
+          && (request.method == 'create' || d.status != 'achieved' || resource.data.status == 'achieved');
+      }
+      match /goals/{id} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid) && entityRules(validGoal(incoming()),
+          ['name', 'icon', 'color', 'type', 'targetAmount', 'targetDate', 'priority', 'linkedInvestmentIds', 'status'],
+          ['currentAmount', 'suggestedMonthly', 'achievedAt']);
+        allow delete: if false;
+      }
+
+      // ---------- Provisionamentos ----------
+      function validProvision(d) {
+        return isString(d.name, 1, 60)
+          && d.kind in ['ipva', 'iptu', 'seguro', 'escola', 'material_escolar', 'ferias', 'decimo_terceiro',
+                        'imposto_renda', 'manutencao', 'presentes', 'outro']
+          && positiveMoney(d.targetAmount) && dateStr(d.dueDate)
+          && d.repeatsYearly is bool && idOrNull(d, 'reserveAccountId') && d.aiSuggested is bool;
+      }
+      match /provisions/{id} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid) && entityRules(validProvision(incoming()),
+          ['name', 'kind', 'targetAmount', 'dueDate', 'repeatsYearly', 'reserveAccountId', 'aiSuggested'],
+          ['accumulatedAmount', 'suggestedMonthly', 'status']);
+        allow delete: if false;
+
+        // Aportes: guardar (deposit) ou usar (withdrawal) o dinheiro reservado.
+        function validContribution(d) {
+          return d.kind in ['deposit', 'withdrawal']
+            && positiveMoney(d.amount)
+            && dateStr(d.date)
+            && (d.get('note', null) == null || isString(d.note, 0, 120))
+            && idOrNull(d, 'transactionId');
+        }
+        match /contributions/{contributionId} {
+          allow read: if isOwner(uid);
+          allow create, update: if isOwner(uid) && entityRules(validContribution(incoming()),
+            ['kind', 'amount', 'date', 'note', 'transactionId'], []);
+          allow delete: if false;
+        }
+      }
+
+      // ---------- Dívidas ----------
+      function validDebt(d) {
+        return isString(d.name, 1, 60) && isString(d.creditor, 1, 60)
+          && d.type in ['personal_loan', 'payroll_loan', 'vehicle_financing', 'real_estate_financing',
+                        'revolving_credit', 'overdraft', 'student_loan', 'credit_card_installment',
+                        'installment_purchase', 'informal', 'other']
+          && positiveMoney(d.originalAmount) && money(d.currentBalance)
+          && d.monthlyRate is number && d.monthlyRate >= 0 && d.monthlyRate <= 30
+          && rateOrNull(d, 'cetYearly', 1000)
+          && d.amortization in ['price', 'sac', 'none']
+          && moneyOrNull(d, 'installmentAmount')
+          && (d.get('installmentCount', null) == null
+              || (d.installmentCount is int && d.installmentCount >= 1 && d.installmentCount <= 600))
+          && dateStr(d.startDate) && dateOrNull(d, 'nextDueDate') && dateOrNull(d, 'endDate')
+          && (d.get('endDate', null) == null || d.endDate >= d.startDate)
+          && idOrNull(d, 'linkedAssetId');
+      }
+      match /debts/{id} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid) && entityRules(validDebt(incoming()),
+          ['name', 'creditor', 'type', 'originalAmount', 'currentBalance', 'monthlyRate', 'cetYearly', 'amortization',
+           'installmentAmount', 'installmentCount', 'startDate', 'nextDueDate', 'endDate', 'linkedAssetId'],
+          ['installmentsPaid', 'payoffPriority', 'status']);
+        allow delete: if false;
+
+        // Pagamentos: parcela (com juros do mês) ou antecipação (abate do saldo).
+        function validDebtPayment(d) {
+          return d.kind in ['regular', 'prepayment']
+            && positiveMoney(d.amount)
+            && money(d.interest) && money(d.principal)
+            && d.interest + d.principal <= d.amount
+            && dateStr(d.date)
+            && (d.get('note', null) == null || isString(d.note, 0, 120))
+            && idOrNull(d, 'transactionId');
+        }
+        match /payments/{paymentId} {
+          allow read: if isOwner(uid);
+          allow create, update: if isOwner(uid) && entityRules(validDebtPayment(incoming()),
+            ['kind', 'amount', 'interest', 'principal', 'date', 'note', 'transactionId'], []);
+          allow delete: if false;
+        }
+      }
+
+      // ---------- Investimentos ----------
+      function validInvestment(d) {
+        return isString(d.name, 1, 80)
+          && d.assetClass in ['fixed_income', 'treasury', 'stocks', 'reits', 'funds', 'pension', 'crypto',
+                              'savings', 'international', 'other']
+          && (d.get('ticker', null) == null || (d.ticker is string && d.ticker.matches('^[A-Z0-9.]{1,12}$')))
+          && (d.get('indexer', null) == null || d.indexer in ['cdi', 'selic', 'ipca', 'prefixed', 'none'])
+          && rateOrNull(d, 'rate', 1000)
+          && d.liquidity in ['daily', 'd_plus_30', 'at_maturity', 'other']
+          && dateOrNull(d, 'maturityDate')
+          && d.isEmergencyReserve is bool && (!d.isEmergencyReserve || d.liquidity == 'daily')
+          && idOrNull(d, 'goalId')
+          && (d.get('quantity', null) == null || (d.quantity is number && d.quantity >= 0))
+          && money(d.currentValue) && d.lastValuationAt is timestamp
+          && d.status in ['active', 'redeemed'];
+      }
+      match /investments/{id} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid) && entityRules(validInvestment(incoming()),
+          ['name', 'assetClass', 'product', 'institutionName', 'ticker', 'indexer', 'rate', 'liquidity',
+           'maturityDate', 'isEmergencyReserve', 'goalId', 'quantity', 'currentValue', 'lastValuationAt', 'status'],
+          ['investedAmount']);
+        allow delete: if false;
+      }
+
+      // ---------- Bens ----------
+      function validAsset(d) {
+        return isString(d.name, 1, 80)
+          && d.type in ['real_estate', 'vehicle', 'electronics', 'business', 'other']
+          && moneyOrNull(d, 'purchaseValue') && dateOrNull(d, 'purchaseDate')
+          && money(d.currentValue) && rateOrNull(d, 'yearlyDepreciation', 100)
+          && idOrNull(d, 'linkedDebtId');
+      }
+      match /assets/{id} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid) && entityRules(validAsset(incoming()),
+          ['name', 'type', 'purchaseValue', 'purchaseDate', 'currentValue', 'yearlyDepreciation', 'linkedDebtId'], []);
+        allow delete: if false;
+      }
+
+      // ---------- Parcelamentos ----------
+      // Enquanto as Cloud Functions não existem, o app gera as parcelas (lançamentos) no mesmo lote.
+      function validInstallmentPlan(d) {
+        return isString(d.description, 1, 120)
+          && positiveMoney(d.totalAmount)
+          && d.installmentCount is int && d.installmentCount >= 2 && d.installmentCount <= 72
+          && positiveMoney(d.installmentAmount) && positiveMoney(d.firstInstallmentAmount)
+          && d.firstInstallmentAmount + d.installmentAmount * (d.installmentCount - 1) == d.totalAmount
+          && dateStr(d.firstDate)
+          && idOrNull(d, 'cardId') && idOrNull(d, 'accountId')
+          && ((d.get('cardId', null) != null) != (d.get('accountId', null) != null))
+          && isString(d.categoryId, 1, 64)
+          && d.hasInterest is bool && rateOrNull(d, 'monthlyRate', 30)
+          && d.status in ['active', 'finished', 'canceled'];
+      }
+      match /installmentPlans/{id} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid) && entityRules(validInstallmentPlan(incoming()),
+          ['description', 'totalAmount', 'installmentCount', 'installmentAmount', 'firstInstallmentAmount',
+           'firstDate', 'cardId', 'accountId', 'categoryId', 'hasInterest', 'monthlyRate', 'status'],
+          ['paidCount']);
+        allow delete: if false;
+      }
+
+      // ---------- Recorrências ----------
+      function validRecurrence(d) {
+        return d.type in ['income', 'expense']
+          && isString(d.description, 1, 120)
+          && positiveMoney(d.amount)
+          && isString(d.categoryId, 1, 64)
+          && idOrNull(d, 'accountId') && idOrNull(d, 'cardId')
+          && (d.type != 'income' || (d.get('accountId', null) != null && d.get('cardId', null) == null))
+          && (d.type != 'expense' || ((d.get('accountId', null) != null) != (d.get('cardId', null) != null)))
+          && d.frequency in ['weekly', 'monthly', 'yearly']
+          && dateStr(d.startDate)
+          && (d.get('endDate', null) == null || (dateStr(d.endDate) && d.endDate >= d.startDate))
+          && d.autoConfirm is bool && d.active is bool
+          && dateOrNull(d, 'generatedUntil');
+      }
+      match /recurrences/{id} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid) && entityRules(validRecurrence(incoming()),
+          ['type', 'description', 'amount', 'categoryId', 'accountId', 'cardId', 'frequency', 'startDate',
+           'endDate', 'autoConfirm', 'active', 'generatedUntil'],
+          []);
+        allow delete: if false;
+      }
+
+      // Coleções derivadas (escritas apenas pelas Cloud Functions): somente leitura.
+      match /aggregates/{id} { allow read: if isOwner(uid); }
+      match /monthlySummaries/{id} { allow read: if isOwner(uid); }
+      match /netWorthSnapshots/{id} { allow read: if isOwner(uid); }
+      match /healthScores/{id} { allow read: if isOwner(uid); }
+
+      // auditLog: sem regra = sem acesso pelo cliente.
+    }
+  }
+}

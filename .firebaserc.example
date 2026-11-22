@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "finance-ia-dev",
+    "staging": "finance-ia-staging",
+    "production": "finance-ia-prod"
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "extends": "@finance-ia/config/typescript/base.json",
+  "include": ["src"]
+}
