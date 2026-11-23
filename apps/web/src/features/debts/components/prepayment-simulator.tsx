@@ -1,6 +1,6 @@
 "use client";
 
-import { simulatePrepayment, type AmortizationSystem } from "@finance-ia/finance-core";
+import { simulatePrepayment } from "@finance-ia/finance-core";
 import { useState } from "react";
 import { Amount } from "@/components/ui/amount";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { MoneyField } from "@/components/ui/money-field";
 import type { DebtView } from "../types";
-import { formatMonthYear, formatMonths } from "./debt-status";
+import { formatMonthYear, formatMonths } from "@/lib/format";
 
 type Strategy = "lump_term" | "lump_payment" | "monthly";
 
@@ -38,7 +38,7 @@ export function PrepaymentSimulator({
   const result = simulatePrepayment({
     balance: debt.currentBalance,
     monthlyRate: debt.monthlyRate,
-    system: debt.amortization as AmortizationSystem,
+    system: debt.amortization,
     payment: view.payment,
     remainingInstallments: view.schedule.rows.length || null,
     firstDate,

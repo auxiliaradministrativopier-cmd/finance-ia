@@ -7,6 +7,7 @@ import {
   onSnapshot,
   orderBy as orderByField,
   query as buildQuery,
+  increment,
   serverTimestamp,
   setDoc,
   Timestamp,
@@ -138,5 +139,6 @@ export function createFirestoreStore(db: Firestore): DataStore {
     },
 
     now: () => serverTimestamp(),
+    increment: (delta) => increment(delta),
   };
 }

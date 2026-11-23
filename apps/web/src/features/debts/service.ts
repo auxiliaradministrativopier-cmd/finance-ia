@@ -81,29 +81,43 @@ export function createDebtService(repos: Repositories = getRepositories()) {
         date: entry.date,
         note: entry.note ?? null,
         transactionId,
+        previousDueDate: debt.nextDueDate,
       });
       operations.push(payment);
 
-      const patch: Partial<DebtInput> = { currentBalance: split.balance };
+      // O saldo cai por soma atômica: dois aparelhos (ou escritas offline) não se sobrescrevem.
+      const patch: Partial<DebtInput> = {};
       if (entry.kind === "regular" && debt.nextDueDate && split.balance > 0)
         patch.nextDueDate = addMonths(debt.nextDueDate, 1);
       if (split.balance === 0) patch.nextDueDate = null;
-      operations.push(await debts.buildUpdate(uid, debt.id, patch));
+      operations.push(
+        await debts.buildUpdate(uid, debt.id, patch, { currentBalance: -split.principal }),
+      );
 
       await repos.commit(operations);
       return payment.id;
     },
 
-    /** Desfaz um pagamento: devolve o principal ao saldo e exclui a despesa ligada. */
+    /**
+     * Desfaz um pagamento: devolve o principal ao saldo e exclui a despesa ligada.
+     * O vencimento só volta quando o pagamento desfeito é o mais recente; pagamentos antigos
+     * não mexem no vencimento atual.
+     */
     async removePayment(uid: string, debt: Debt, payment: DebtPayment): Promise<void> {
+      const payments = await repos.debtPayments(debt.id).list(uid);
+      const latest = payments[0]?.id === payment.id;
+      const patch: Partial<DebtInput> = {};
+      if (latest) {
+        if (payment.previousDueDate !== undefined && payment.previousDueDate !== null) {
+          patch.nextDueDate = payment.previousDueDate;
+        } else if (payment.kind === "regular" && debt.nextDueDate) {
+          // Pagamentos antigos, sem o vencimento anterior guardado.
+          patch.nextDueDate = addMonths(debt.nextDueDate, -1);
+        }
+      }
       const operations: WriteOperation[] = [
         await repos.debtPayments(debt.id).buildRemove(uid, payment.id),
-        await debts.buildUpdate(uid, debt.id, {
-          currentBalance: debt.currentBalance + payment.principal,
-          ...(payment.kind === "regular" && debt.nextDueDate
-            ? { nextDueDate: addMonths(debt.nextDueDate, -1) }
-            : {}),
-        }),
+        await debts.buildUpdate(uid, debt.id, patch, { currentBalance: payment.principal }),
       ];
       if (payment.transactionId)
         operations.push(await transactions.buildRemove(uid, payment.transactionId));

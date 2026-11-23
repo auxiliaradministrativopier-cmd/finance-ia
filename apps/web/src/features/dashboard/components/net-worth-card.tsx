@@ -2,10 +2,10 @@
 
 import { ChartLegend } from "@/components/charts/chart-tooltip";
 import { LineChart } from "@/components/charts/line-chart";
-import { formatMonthLong, formatMonthShort } from "../data/format";
+import { formatMonthLong, formatMonthShort } from "@/lib/format";
 import type { NetWorthPoint } from "../data/types";
-import { ChartCard, DataTable } from "./chart-card";
-import { useMoneyFormatters } from "./money";
+import { ChartCard, DataTable } from "@/components/charts/chart-card";
+import { useMoneyFormatters } from "@/hooks/use-money-formatters";
 
 export function NetWorthCard({
   points,

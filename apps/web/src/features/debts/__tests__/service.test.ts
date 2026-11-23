@@ -159,4 +159,54 @@ describe("dívidas", () => {
     expect(summary.growing).toHaveLength(1);
     expect(summary.monthInterest).toBe(120_000);
   });
+
+  it("excluir um pagamento antigo não mexe no vencimento; o mais recente devolve o anterior", async () => {
+    const { repos, service } = await setup();
+    const id = await service.create(UID, loan);
+    await service.registerPayment(UID, await repos.debts.get(UID, id), {
+      kind: "regular",
+      amount: 94_560,
+      date: "2026-12-01",
+    });
+    await service.registerPayment(UID, await repos.debts.get(UID, id), {
+      kind: "regular",
+      amount: 94_560,
+      date: "2027-01-01",
+    });
+    expect((await repos.debts.get(UID, id)).nextDueDate).toBe("2027-02-01");
+
+    const [newest, oldest] = await repos.debtPayments(id).list(UID);
+    await service.removePayment(UID, await repos.debts.get(UID, id), oldest!);
+    expect((await repos.debts.get(UID, id)).nextDueDate).toBe("2027-02-01");
+    await service.removePayment(UID, await repos.debts.get(UID, id), newest!);
+    expect(await repos.debts.get(UID, id)).toMatchObject({
+      nextDueDate: "2027-01-01",
+      currentBalance: 1_000_000,
+    });
+  });
+
+  it("desfazer a quitação devolve o vencimento", async () => {
+    const { repos, service } = await setup();
+    const id = await service.create(UID, loan);
+    await service.registerPayment(UID, await repos.debts.get(UID, id), {
+      kind: "prepayment",
+      amount: 1_000_000,
+      date: TODAY,
+    });
+    const [payment] = await repos.debtPayments(id).list(UID);
+    await service.removePayment(UID, await repos.debts.get(UID, id), payment!);
+    expect(await repos.debts.get(UID, id)).toMatchObject({
+      currentBalance: 1_000_000,
+      nextDueDate: "2026-12-01",
+    });
+  });
+
+  it("dois pagamentos com a mesma visão desatualizada somam os dois no saldo", async () => {
+    const { repos, service } = await setup();
+    const id = await service.create(UID, loan);
+    const stale = await repos.debts.get(UID, id);
+    await service.registerPayment(UID, stale, { kind: "prepayment", amount: 100_000, date: TODAY });
+    await service.registerPayment(UID, stale, { kind: "prepayment", amount: 50_000, date: TODAY });
+    expect((await repos.debts.get(UID, id)).currentBalance).toBe(850_000);
+  });
 });

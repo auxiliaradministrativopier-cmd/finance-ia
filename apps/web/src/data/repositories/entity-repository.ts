@@ -61,14 +61,33 @@ export function createEntityRepository<
   const collectionPath = (uid: string) => `users/${uid}/${config.collection}`;
   const docPath = (uid: string, id: string) => `${collectionPath(uid)}/${id}`;
 
-  const toModel = ({ id, data }: StoredDocument): Model =>
-    ({ ...data, ...readMeta(id, data) }) as Model;
+  /**
+   * Leitura validada: os campos de entrada passam pelo schema (que também preenche padrões de
+   * campos novos). Documento inválido (antigo, corrompido) volta null e fica de fora das listas,
+   * em vez de quebrar a tela. O resultado fica em cache por versão do documento (updatedAt).
+   */
+  const validated = new Map<string, { version: number; model: Model | null }>();
+  function toModel({ id, data }: StoredDocument): Model | null {
+    const updatedAt = data.updatedAt instanceof Date ? data.updatedAt.getTime() : null;
+    const cached = updatedAt !== null ? validated.get(id) : undefined;
+    if (cached && cached.version === updatedAt) return cached.model;
+    const result = config.schema.safeParse(inputFields(data));
+    let model: Model | null = null;
+    if (result.success) {
+      model = { ...data, ...(result.data as DocumentData), ...readMeta(id, data) } as Model;
+    } else {
+      console.warn(`Documento inválido ignorado em ${config.collection}: ${id}`);
+    }
+    if (updatedAt !== null) validated.set(id, { version: updatedAt, model });
+    return model;
+  }
 
   const visible = (docs: StoredDocument[], options: ListOptions) =>
     docs
       .filter((item) => options.includeArchived || item.data.archived !== true)
       .sort((a, b) => (config.sort ? config.sort(a.data, b.data) : 0))
-      .map(toModel);
+      .map(toModel)
+      .filter((item): item is Model => item !== null);
 
   function parse(input: unknown): z.output<TSchema> {
     const result = config.schema.safeParse(input);
@@ -135,7 +154,13 @@ export function createEntityRepository<
     },
 
     async get(uid: string, id: string): Promise<Model> {
-      return toModel(await getRaw(uid, id));
+      const model = toModel(await getRaw(uid, id));
+      if (!model) {
+        throw new DataError("invalid", {
+          message: `Não foi possível ler ${config.label}. Os dados parecem incompletos.`,
+        });
+      }
+      return model;
     },
 
     /** Gera um id novo (para montar lotes que referenciam o documento antes de gravá-lo). */
@@ -172,17 +197,30 @@ export function createEntityRepository<
       uid: string,
       id: string,
       patch: Partial<z.input<TSchema>>,
+      /** Somas atômicas a campos numéricos (ex.: saldo), validadas com o valor resultante. */
+      increments: Record<string, number> = {},
     ): Promise<WriteOperation> {
       const current = await getRaw(uid, id);
-      const merged = parse({ ...inputFields(current.data), ...patch }) as DocumentData;
+      const incremented = Object.fromEntries(
+        Object.entries(increments).map(([key, delta]) => [
+          key,
+          Number(current.data[key] ?? 0) + delta,
+        ]),
+      );
+      const merged = parse({
+        ...inputFields(current.data),
+        ...patch,
+        ...incremented,
+      }) as DocumentData;
       const derived = config.derive?.(merged as z.output<TSchema>) ?? {};
-      const changed = Object.fromEntries(
-        [...Object.keys(patch), ...Object.keys(derived)].map((key) => [
+      const store = await getStore();
+      const changed = Object.fromEntries([
+        ...[...Object.keys(patch), ...Object.keys(derived)].map((key) => [
           key,
           key in derived ? derived[key] : merged[key],
         ]),
-      );
-      const store = await getStore();
+        ...Object.entries(increments).map(([key, delta]) => [key, store.increment(delta)]),
+      ]);
       return {
         type: "update",
         path: docPath(uid, id),

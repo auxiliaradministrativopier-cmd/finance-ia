@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { TextField } from "@/components/ui/text-field";
 import { DataError } from "@/data/errors";
 import { cn } from "@/lib/cn";
-import { formatMonthTitle } from "../format";
+import { formatMonthTitle } from "@/lib/format";
 import type {
   Account,
   Card,

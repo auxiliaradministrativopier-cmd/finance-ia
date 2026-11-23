@@ -1,9 +1,9 @@
 "use client";
 
-import { todayIn } from "@finance-ia/finance-core";
 import { useEffect, useMemo, useRef } from "react";
 import { getRepositories } from "@/data/repositories";
 import { useLiveList } from "@/data/use-live-list";
+import { today as currentDay } from "@/lib/time";
 import { useAuth } from "@/features/auth/auth-provider";
 import { createCashFlowService, type CashFlowContext } from "./service";
 
@@ -25,7 +25,7 @@ export function useCashFlowData() {
   const cards = useLiveList(repos().cards, { includeArchived: true });
   const categories = useLiveList(repos().categories, { includeArchived: true });
   const recurrences = useLiveList(repos().recurrences);
-  const today = todayIn();
+  const today = currentDay();
 
   const ready = [transactions, accounts, cards, categories, recurrences].every(
     (state) => state.status === "ready",
@@ -50,17 +50,32 @@ export function useCashFlowData() {
       .catch((caught) => console.error("Não foi possível atualizar as recorrências.", caught));
   }, [ready, context, recurrences.items]);
 
-  return {
-    status: error ? ("error" as const) : ready ? ("ready" as const) : ("loading" as const),
-    error,
-    today,
-    context,
-    transactions: transactions.items,
-    accounts: accounts.items,
-    cards: cards.items,
-    categories: categories.items,
-    recurrences: recurrences.items,
-  };
+  // Objeto estável: quem depende dele (Dashboard, IFA, assistente) só recalcula quando os dados mudam.
+  const status = error ? ("error" as const) : ready ? ("ready" as const) : ("loading" as const);
+  return useMemo(
+    () => ({
+      status,
+      error,
+      today,
+      context,
+      transactions: transactions.items,
+      accounts: accounts.items,
+      cards: cards.items,
+      categories: categories.items,
+      recurrences: recurrences.items,
+    }),
+    [
+      status,
+      error,
+      today,
+      context,
+      transactions.items,
+      accounts.items,
+      cards.items,
+      categories.items,
+      recurrences.items,
+    ],
+  );
 }
 
 export type CashFlowData = ReturnType<typeof useCashFlowData>;

@@ -3,6 +3,8 @@ import {
   amortizationSchedule,
   applyPayment,
   balanceHistory,
+  debtEvolution,
+  debtSnapshot,
   monthlyInterest,
   percentPaid,
   pricePayment,
@@ -197,5 +199,66 @@ describe("balanceHistory", () => {
     expect(points[0]).toEqual({ month: "2026-01", balance: 120_000, estimated: false });
     expect(points[2]).toEqual({ month: "2026-03", balance: 60_000, estimated: true });
     expect(points.at(-1)).toEqual({ month: "2026-05", balance: 60_000, estimated: false });
+  });
+});
+
+describe("debtSnapshot", () => {
+  const base = {
+    originalAmount: 1_000_000,
+    currentBalance: 600_000,
+    monthlyRate: 2,
+    system: "price" as const,
+    installmentAmount: 94_560,
+    installmentCount: 12,
+    endDate: "2027-11-01",
+    nextDueDate: "2026-12-01",
+    regularPaymentsCount: 0,
+    today: "2026-11-22",
+  };
+
+  it("prazo pela data final, percentual pago e juros do mês", () => {
+    const snapshot = debtSnapshot(base);
+    expect(snapshot.remainingInstallments).toBe(12);
+    expect(snapshot.percentPaid).toBeCloseTo(0.4);
+    expect(snapshot.monthInterest).toBe(12_000);
+    expect(snapshot.status).toBe("active");
+  });
+
+  it("situações: quitada, crescendo e vencida", () => {
+    expect(debtSnapshot({ ...base, currentBalance: 0 }).status).toBe("paid_off");
+    expect(
+      debtSnapshot({
+        ...base,
+        monthlyRate: 20,
+        installmentAmount: 50_000,
+        endDate: null,
+        installmentCount: null,
+      }).status,
+    ).toBe("growing");
+    expect(debtSnapshot({ ...base, nextDueDate: "2026-11-10" }).status).toBe("overdue");
+  });
+
+  it("evolução reduz a 30 pontos mantendo o primeiro e o último", () => {
+    const snapshot = debtSnapshot({
+      ...base,
+      currentBalance: 1_000_000,
+      installmentAmount: 10_000,
+      endDate: null,
+      installmentCount: 600,
+      monthlyRate: 0,
+      system: "none",
+    });
+    const points = debtEvolution({
+      originalAmount: 1_000_000,
+      currentBalance: 1_000_000,
+      startDate: "2026-11-01",
+      trackedSince: "2026-11",
+      payments: [],
+      schedule: snapshot.schedule,
+      today: "2026-11-22",
+    });
+    expect(points.length).toBeLessThanOrEqual(31);
+    expect(points[0]).toMatchObject({ month: "2026-11", projected: false });
+    expect(points.at(-1)).toMatchObject({ value: 0, projected: true });
   });
 });

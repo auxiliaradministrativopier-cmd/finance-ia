@@ -106,4 +106,29 @@ describe("resumo para o assistente", () => {
     expect(text).not.toMatch(/acc-123|exemplo\.com|123\.456/);
     expect(text).toContain("Pix para [e-mail] CPF [CPF]");
   });
+
+  it("separa a fatura do cartão que vence no mês e mostra nas próximas contas", () => {
+    const withCard: AssistantSources = {
+      ...sources,
+      cards: [{ id: "visa", closingDay: 20, dueDay: 28 }],
+      transactions: [
+        ...sources.transactions,
+        tx({
+          amount: 50_000,
+          date: "2026-11-10",
+          accountId: null,
+          cardId: "visa",
+          invoiceMonth: "2026-11",
+        }),
+      ],
+    };
+    const result = buildAssistantContext(withCard, computeHealth(withCard));
+    expect(result.spending.cardInvoicesDue).toBe(500);
+    expect(result.spending.available).toBe(context.spending.available - 500);
+    expect(result.upcomingBills).toContainEqual({
+      title: "Fatura do cartão",
+      amount: 500,
+      dueDate: "2026-11-28",
+    });
+  });
 });

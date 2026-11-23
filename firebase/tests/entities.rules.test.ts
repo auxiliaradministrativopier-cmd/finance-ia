@@ -29,7 +29,23 @@ beforeAll(async () => {
 afterAll(async () => env.cleanup());
 beforeEach(async () => env.clearFirestore());
 
-const owner = () => env.authenticatedContext(UID, { email: "juliana@exemplo.com" }).firestore();
+const owner = () =>
+  env
+    .authenticatedContext(UID, {
+      email: "juliana@exemplo.com",
+      email_verified: true,
+      firebase: { sign_in_provider: "password" },
+    })
+    .firestore();
+/** Conta com senha que ainda não confirmou o e-mail. */
+const unverified = () =>
+  env
+    .authenticatedContext(UID, {
+      email: "juliana@exemplo.com",
+      email_verified: false,
+      firebase: { sign_in_provider: "password" },
+    })
+    .firestore();
 const intruder = () =>
   env.authenticatedContext("intruso", { email: "intruso@exemplo.com" }).firestore();
 const stamps = () => ({
@@ -154,6 +170,18 @@ const cases: EntityCase[] = [
       "pago sem data de pagamento": { paidAt: null },
       "sem categoria": { categoryId: null },
       "moeda diferente": { currency: "USD" },
+      "mês diferente da data": { month: "2026-10" },
+      "pagamento de fatura sem conta": {
+        type: "transfer",
+        accountId: null,
+        categoryId: null,
+      },
+      "pagamento de fatura com conta de destino": {
+        type: "transfer",
+        accountId: "acc1",
+        toAccountId: "acc2",
+        categoryId: null,
+      },
       "transferência para a mesma conta": {
         type: "transfer",
         accountId: "acc1",
@@ -475,8 +503,71 @@ describe("debts/{id}/payments", () => {
     );
   });
 
+  it("guarda o vencimento anterior (para desfazer) só como data válida", async () => {
+    await assertSucceeds(setDoc(path(), { ...payment(), previousDueDate: "2026-12-10" }));
+    await assertFails(
+      setDoc(doc(owner(), "users", UID, "debts", "d1", "payments", "pg2"), {
+        ...payment(),
+        previousDueDate: "10/12/2026",
+      }),
+    );
+  });
+
   it("juros e principal não podem passar do valor pago; tipo validado", async () => {
     await assertFails(setDoc(path(), { ...payment(), principal: 112000 }));
     await assertFails(setDoc(path(), { ...payment(), kind: "estorno" }));
+  });
+});
+
+describe("pagamento de fatura e e-mail confirmado", () => {
+  const transaction = (change: DocumentData = {}) => ({
+    type: "transfer",
+    status: "paid",
+    amount: 50000,
+    currency: "BRL",
+    description: "Pagamento da fatura Visa",
+    date: "2026-12-10",
+    month: "2026-12",
+    paidAt: new Date(),
+    accountId: "acc1",
+    cardId: "card1",
+    invoiceMonth: "2026-12",
+    toAccountId: null,
+    categoryId: null,
+    categoryName: null,
+    categoryIcon: null,
+    categoryColor: null,
+    installmentPlanId: null,
+    installmentNumber: null,
+    installmentTotal: null,
+    recurrenceId: null,
+    linkedEntity: { type: "invoice", id: "card1_2026-12" },
+    tags: [],
+    notes: null,
+    attachments: [],
+    source: "manual",
+    clientRequestId: "req-12345678",
+    ...stamps(),
+    ...change,
+  });
+
+  it("aceita o pagamento da fatura: da conta para o cartão, sem categoria", async () => {
+    await assertSucceeds(setDoc(doc(owner(), "users", UID, "transactions", "p1"), transaction()));
+  });
+
+  it("conta com senha sem e-mail confirmado não lê nem grava dados financeiros", async () => {
+    await assertFails(setDoc(doc(unverified(), "users", UID, "transactions", "p1"), transaction()));
+    await assertFails(getDoc(doc(unverified(), "users", UID, "transactions", "p1")));
+  });
+
+  it("login com Google não depende da confirmação por e-mail", async () => {
+    const google = env
+      .authenticatedContext(UID, {
+        email: "juliana@exemplo.com",
+        email_verified: false,
+        firebase: { sign_in_provider: "google.com" },
+      })
+      .firestore();
+    await assertSucceeds(setDoc(doc(google, "users", UID, "transactions", "p1"), transaction()));
   });
 });

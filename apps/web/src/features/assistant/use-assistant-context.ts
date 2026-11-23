@@ -13,6 +13,7 @@ export function useAssistantContext() {
     const sources = {
       today: cashFlow.today,
       accounts: cashFlow.accounts,
+      cards: cashFlow.cards,
       transactions: cashFlow.transactions,
       debts: debts.views,
       provisions: provisions.views,

@@ -1,6 +1,25 @@
 import type { IfaBand } from "@finance-ia/finance-core";
-import { gaugeArc } from "@/features/dashboard/components/ifa-card";
 import { cn } from "@/lib/cn";
+
+/** Arco de 240° (de 150° a 390°), proporcional à nota de 0 a 1000. */
+export function gaugeArc(score: number, radius = 80, center = 100): string {
+  const start = 150;
+  const sweep = (240 * Math.min(Math.max(score, 0), 1000)) / 1000;
+  const point = (angle: number) => {
+    const rad = (angle * Math.PI) / 180;
+    return `${(center + radius * Math.cos(rad)).toFixed(2)} ${(center + radius * Math.sin(rad)).toFixed(2)}`;
+  };
+  if (sweep <= 0) return "";
+  return `M${point(start)} A${radius} ${radius} 0 ${sweep > 180 ? 1 : 0} 1 ${point(start + sweep)}`;
+}
+
+/** Tom do badge de cada faixa (sempre acompanhado do nome da faixa). */
+export const bandTone = {
+  critical: "danger",
+  attention: "warning",
+  healthy: "success",
+  excellent: "ai",
+} as const;
 
 export const bandStroke: Record<IfaBand, string> = {
   critical: "var(--ifa-critical)",

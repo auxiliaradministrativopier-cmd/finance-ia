@@ -236,4 +236,36 @@ describe("IFA", () => {
       facts: { overdue: 0 },
     });
   });
+
+  it("fatura de cartão a vencer sai da reserva", () => {
+    const base = input({
+      accounts: [
+        {
+          id: "itau",
+          initialBalance: 3_000_000,
+          initialBalanceDate: "2026-09-01",
+          includeInTotal: true,
+        },
+      ],
+    });
+    const card = { id: "visa", closingDay: 3, dueDay: 10 };
+    const withInvoice = {
+      ...base,
+      cards: [card],
+      entries: [
+        ...base.entries,
+        entry({
+          amount: 900_000,
+          date: "2026-11-15",
+          accountId: null,
+          cardId: "visa",
+          invoiceMonth: "2026-12",
+        }),
+      ],
+    };
+    const before = pillar(healthScore(base, TODAY), "reserve");
+    const after = pillar(healthScore(withInvoice, TODAY), "reserve");
+    expect(after.facts.openInvoices).toBe(900_000);
+    expect(after.facts.reservePool).toBe(before.facts.reservePool! - 900_000);
+  });
 });

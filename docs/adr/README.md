@@ -17,3 +17,4 @@
 | 13  | [Fluxo de caixa: parcelas e recorrências geradas no app](0013-fluxo-de-caixa.md)             | Aceita (temporária)                                     |
 | 14  | [Índice Finance IA (IFA) calculado no app](0014-indice-finance-ia.md)                        | Aceita (temporária)                                     |
 | 15  | [Assistente IA pela rota do servidor, com dados mínimos e mascarados](0015-assistente-ia.md) | Aceita                                                  |
+| 16  | [Correções da auditoria técnica](0016-correcoes-da-auditoria.md)                             | Aceita                                                  |

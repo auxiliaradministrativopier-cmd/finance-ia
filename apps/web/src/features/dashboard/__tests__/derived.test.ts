@@ -1,8 +1,8 @@
+import { ifaBand } from "@finance-ia/finance-core";
 import {
   dailyAllowance,
   daysUntil,
   debtCommitment,
-  ifaBandFor,
   monthlySavings,
   percentChange,
   savingsRate,
@@ -14,7 +14,7 @@ import {
   formatMonthShort,
   formatSignedPercent,
   previousMonth,
-} from "../data/format";
+} from "@/lib/format";
 import { mockDashboard as data } from "../data/mock-dashboard";
 
 describe("dados simulados coerentes", () => {
@@ -52,7 +52,7 @@ describe("dados simulados coerentes", () => {
   });
 
   it("a nota do IFA está na faixa declarada", () => {
-    expect(ifaBandFor(data.ifa!.score)).toBe(data.ifa!.band);
+    expect(ifaBand(data.ifa!.score)).toBe(data.ifa!.band);
   });
 });
 
@@ -79,10 +79,10 @@ describe("cálculos de exibição", () => {
   });
 
   it("classifica as faixas do IFA nos limites", () => {
-    expect(ifaBandFor(399)).toBe("critical");
-    expect(ifaBandFor(400)).toBe("attention");
-    expect(ifaBandFor(600)).toBe("healthy");
-    expect(ifaBandFor(800)).toBe("excellent");
+    expect(ifaBand(399)).toBe("critical");
+    expect(ifaBand(400)).toBe("attention");
+    expect(ifaBand(600)).toBe("healthy");
+    expect(ifaBand(800)).toBe("excellent");
   });
 });
 

@@ -110,6 +110,10 @@ export function createDemoGateway(
     async getIdToken() {
       return read() ? "demo" : null;
     },
+
+    async reauthenticate() {
+      if (!read()) throw new AuthError("requires-recent-login");
+    },
   };
 }
 
@@ -135,5 +139,6 @@ export function createUnavailableGateway(): AuthGateway {
     updatePhotoUrl: unavailable,
     changePassword: unavailable,
     getIdToken: async () => null,
+    reauthenticate: unavailable,
   };
 }

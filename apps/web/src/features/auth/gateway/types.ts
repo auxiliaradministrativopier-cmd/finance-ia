@@ -27,5 +27,10 @@ export interface AuthGateway {
    * Token de curta duração que prova a identidade para o servidor do app (rotas /api).
    * Nunca é enviado a serviços de terceiros.
    */
-  getIdToken(): Promise<string | null>;
+  getIdToken(forceRefresh?: boolean): Promise<string | null>;
+  /**
+   * Confirma a identidade de novo antes de uma ação sensível (excluir a conta).
+   * Contas com senha informam a senha; contas Google confirmam na janela do Google.
+   */
+  reauthenticate(password: string | null): Promise<void>;
 }

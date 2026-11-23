@@ -1,6 +1,5 @@
-import { ifaBand } from "@finance-ia/finance-core";
 import type { Cents } from "@finance-ia/shared";
-import type { DashboardData, IfaBand } from "./types";
+import type { DashboardData } from "./types";
 
 /** Cálculos de exibição do Dashboard. Regras financeiras de verdade ficarão no finance-core. */
 export function monthlySavings(data: DashboardData): Cents {
@@ -44,13 +43,3 @@ export function daysUntil(today: string, date: string): number {
   };
   return Math.round((toUtc(date) - toUtc(today)) / 86_400_000);
 }
-
-export const ifaBandLabel: Record<IfaBand, string> = {
-  critical: "Crítico",
-  attention: "Atenção",
-  healthy: "Saudável",
-  excellent: "Excelente",
-};
-
-/** Faixa do IFA (mesma regra do finance-core). */
-export const ifaBandFor: (score: number) => IfaBand = ifaBand;

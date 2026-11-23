@@ -81,7 +81,7 @@ export function AssistantPage() {
           </div>
 
           <form
-            className="flex flex-col gap-2 border-t border-line p-4"
+            className="sticky bottom-[calc(var(--spacing-tabbar)+env(safe-area-inset-bottom,0px))] z-10 flex flex-col gap-2 rounded-b-lg border-t border-line bg-surface p-4 lg:bottom-0"
             onSubmit={(event) => {
               event.preventDefault();
               ask(draft);

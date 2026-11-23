@@ -10,10 +10,11 @@ export interface AccountOpening {
 
 /**
  * Efeito de um lançamento no saldo de uma conta. Compras no cartão não mexem na conta:
- * o dinheiro só sai quando a fatura é paga.
+ * o dinheiro só sai quando a fatura é paga (transferência da conta para o cartão).
  */
 export function accountEffect(entry: LedgerEntry, accountId: string): number {
-  if (entry.cardId) return 0;
+  // Compra no cartão não mexe na conta; o pagamento da fatura (transferência com cardId) sim.
+  if (entry.cardId && entry.type !== "transfer") return 0;
   if (entry.type === "income" && entry.accountId === accountId) return entry.amount;
   if (entry.type === "expense" && entry.accountId === accountId) return -entry.amount;
   if (entry.type === "transfer") {

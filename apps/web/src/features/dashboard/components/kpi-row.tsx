@@ -13,10 +13,10 @@ import { Amount } from "@/components/ui/amount";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { cn } from "@/lib/cn";
 import { debtCommitment, monthlySavings, percentChange, savingsRate } from "../data/derived";
-import { formatMonthName, formatPercent, formatSignedPercent, previousMonth } from "../data/format";
+import { formatMonthName, formatPercent, formatSignedPercent, previousMonth } from "@/lib/format";
 import type { DashboardData } from "../data/types";
-import { useMoneyFormatters } from "./money";
-import { StatTile } from "./stat-tile";
+import { useMoneyFormatters } from "@/hooks/use-money-formatters";
+import { StatTile } from "@/components/ui/stat-tile";
 
 function Change({
   ratio,

@@ -316,3 +316,46 @@ describe("Firestore: lista vazia do cache", () => {
     expect(isProvisionalEmpty(true, true, false)).toBe(false);
   });
 });
+
+describe("leitura validada", () => {
+  it("documento inválido fica fora da lista e não derruba a tela; get explica o problema", async () => {
+    const store = createMemoryStore();
+    const repos = createRepositories(async () => store);
+    const id = await repos.categories.create(UID, {
+      name: "Mercado",
+      type: "expense",
+      icon: "shopping-cart",
+      color: "chart-1",
+    });
+    await store.set(`users/${UID}/categories/quebrado`, {
+      name: "",
+      type: "desconhecido",
+      deletedAt: null,
+      updatedAt: new Date(),
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const list = await repos.categories.list(UID);
+    expect(list.map((item) => item.id)).toEqual([id]);
+    await expect(repos.categories.get(UID, "quebrado")).rejects.toBeInstanceOf(DataError);
+    expect(warn).toHaveBeenCalledWith("Documento inválido ignorado em categories: quebrado");
+    warn.mockRestore();
+  });
+
+  it("preenche com o padrão campos que surgiram depois (migração suave)", async () => {
+    const store = createMemoryStore();
+    const repos = createRepositories(async () => store);
+    await store.set(`users/${UID}/debts/d1/payments/antigo`, {
+      kind: "regular",
+      amount: 1000,
+      interest: 100,
+      principal: 900,
+      date: "2026-11-01",
+      note: null,
+      transactionId: null,
+      deletedAt: null,
+      updatedAt: new Date(),
+    });
+    const [payment] = await repos.debtPayments("d1").list(UID);
+    expect(payment).toMatchObject({ id: "antigo", previousDueDate: null });
+  });
+});

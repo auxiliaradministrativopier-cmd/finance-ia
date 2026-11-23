@@ -8,7 +8,7 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Chip } from "@/components/ui/chip";
 import { useAuth } from "@/features/auth/auth-provider";
-import { formatMonthLong } from "../data/format";
+import { formatMonthLong } from "@/lib/format";
 import { useDashboard } from "../use-dashboard";
 import { AlertsList } from "./alerts-list";
 import { BalanceHero } from "./balance-hero";

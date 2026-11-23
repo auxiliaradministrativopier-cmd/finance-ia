@@ -44,4 +44,9 @@ export interface DataStore {
   batch(operations: WriteOperation[]): Promise<void>;
   /** Marca de "agora" que o banco preenche (serverTimestamp no Firestore). */
   now(): unknown;
+  /**
+   * Soma atômica a um campo numérico (increment no Firestore). Duas gravações ao mesmo tempo,
+   * inclusive offline em aparelhos diferentes, nunca sobrescrevem uma à outra.
+   */
+  increment(delta: number): unknown;
 }

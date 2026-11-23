@@ -1,7 +1,7 @@
 import { Flag, ShieldCheck } from "lucide-react";
 import { Amount } from "@/components/ui/amount";
 import { ProgressBar } from "@/components/ui/progress-bar";
-import { formatMonthLong, formatPercent } from "../data/format";
+import { formatMonthLong, formatPercent } from "@/lib/format";
 import type { DashboardData } from "../data/types";
 import { ListCard } from "./list-card";
 

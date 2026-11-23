@@ -361,7 +361,7 @@ export const screens = {
     objective: "Dar a você controle total sobre seus dados.",
     route: "/configuracoes/privacidade",
     group: "conta",
-    phase: 4,
+    phase: 1,
   },
   planos: {
     number: "57",
@@ -390,4 +390,11 @@ export function getScreen(id: ScreenId): ScreenDefinition {
 export function screenMetadata(id: ScreenId): Metadata {
   const screen = screens[id];
   return { title: screen.title, description: screen.objective };
+}
+
+/** A tela da rota já está disponível (fase 1)? Telas de fases futuras ainda são esboços. */
+export function isScreenAvailable(route: string): boolean {
+  return Object.values(screens).some(
+    (screen: ScreenDefinition) => screen.route === route && screen.phase === 1,
+  );
 }

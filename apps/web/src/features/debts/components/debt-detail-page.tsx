@@ -17,23 +17,29 @@ import { useToast } from "@/components/ui/toast";
 import { getRepositories } from "@/data/repositories";
 import { useLiveList } from "@/data/use-live-list";
 import { useAuth } from "@/features/auth/auth-provider";
-import { formatShortDate } from "@/features/cash-flow/format";
-import { ChartCard, DataTable } from "@/features/dashboard/components/chart-card";
-import { useMoneyFormatters } from "@/features/dashboard/components/money";
-import { formatMonthLong, formatMonthShort } from "@/features/dashboard/data/format";
+import { ChartCard, DataTable } from "@/components/charts/chart-card";
+import { useMoneyFormatters } from "@/hooks/use-money-formatters";
+import {
+  formatMonthLong,
+  formatMonths,
+  formatMonthShort,
+  formatMonthYear,
+  formatRate,
+  formatShortDate,
+} from "@/lib/format";
 import { amortizationLabels, typeLabel } from "../kinds";
 import type { DebtView } from "../types";
 import { getDebtService, useDebts } from "../use-debts";
 import { debtEvolution } from "../views";
-import { DebtFormSheet, formatRate } from "./debt-form-sheet";
-import { DebtStatusBadge, formatMonthYear, formatMonths } from "./debt-status";
+import { DebtFormSheet } from "./debt-form-sheet";
+import { DebtStatusBadge } from "./debt-status";
 import { PaymentSheet } from "./payment-sheet";
 import { PrepaymentSimulator } from "./prepayment-simulator";
 
 /** Tela 40: Detalhe da dívida, com evolução, percentual pago e simulação de antecipação. */
 export function DebtDetailPage({ id }: { id: string }) {
   const { user } = useAuth();
-  const { status, error, views, today } = useDebts();
+  const { status, error, views, today } = useDebts(id);
   const accounts = useLiveList(getRepositories().accounts);
   const toast = useToast();
   const service = getDebtService();

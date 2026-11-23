@@ -8,10 +8,10 @@ import { Card } from "@/components/ui/card";
 import { CategoryIcon } from "@/components/ui/category-icon";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { ProgressBar } from "@/components/ui/progress-bar";
-import { formatRate } from "./debt-form-sheet";
 import { groupOf, typeLabel } from "../kinds";
 import type { DebtView } from "../types";
-import { DebtStatusBadge, formatMonthYear } from "./debt-status";
+import { DebtStatusBadge } from "./debt-status";
+import { formatMonthYear, formatRate } from "@/lib/format";
 
 export function DebtCard({
   view,

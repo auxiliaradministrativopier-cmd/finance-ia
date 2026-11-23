@@ -1,19 +1,20 @@
 import {
   accountBalances,
+  type AccountOpening,
   addDays,
   addMonthsToMonth,
   balanceSeries,
+  invoiceBalance,
   invoiceFor,
+  type LedgerEntry,
   monthlyFlow,
   monthRange,
   summarizeMonth,
   totalBalance,
-  type AccountOpening,
-  type LedgerEntry,
 } from "@finance-ia/finance-core";
 import { formatMoney } from "@finance-ia/shared";
 import { daysUntil } from "./derived";
-import { formatMonthLong, formatPercent } from "./format";
+import { formatPercent } from "@/lib/format";
 import type { DashboardAlert, DashboardData, GoalSummary, UpcomingBill } from "./types";
 
 export interface LiveSources {
@@ -100,9 +101,8 @@ export function buildLiveDashboard(sources: LiveSources): DashboardData {
     }));
   for (const card of sources.cards.filter((item) => !item.archived)) {
     const invoice = invoiceFor(today, card);
-    const total = entries
-      .filter((entry) => entry.cardId === card.id && entry.invoiceMonth === invoice.invoiceMonth)
-      .reduce((sum, entry) => sum + entry.amount, 0);
+    // O que falta pagar da fatura (compras menos pagamentos já registrados).
+    const total = invoiceBalance(entries, card.id, invoice.invoiceMonth).remaining;
     if (total > 0 && invoice.dueDate <= horizon) {
       bills.push({
         id: `invoice-${card.id}`,
@@ -325,5 +325,3 @@ export function buildLiveDashboard(sources: LiveSources): DashboardData {
     alerts,
   };
 }
-
-export const liveMonthTitle = formatMonthLong;

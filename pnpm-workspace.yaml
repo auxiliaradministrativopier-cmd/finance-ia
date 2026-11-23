@@ -2,3 +2,14 @@ packages:
   - "apps/*"
   - "packages/*"
   - "firebase"
+
+# Versões forçadas por segurança (ver docs/adr/0016-correcoes-da-auditoria.md).
+# @grpc/grpc-js < 1.13.6 tem alertas (GHSA-f596-whhp-79r4); chega pelo @firebase/firestore.
+overrides:
+  "@grpc/grpc-js@<1.13.6": "1.14.7"
+
+# Falso positivo: o audit confunde a pasta do workspace "firebase" (0.1.0) com o pacote npm
+# "firebase"; o SDK instalado é o 12.19.0, fora da faixa afetada (<10.9.0).
+auditConfig:
+  ignoreGhsas:
+    - GHSA-3wf4-68gx-mph8

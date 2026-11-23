@@ -2,7 +2,7 @@ import { CalendarClock, CreditCard, Landmark, PiggyBank, Receipt } from "lucide-
 import { Amount } from "@/components/ui/amount";
 import { Badge } from "@/components/ui/badge";
 import { daysUntil } from "../data/derived";
-import { formatDayMonth } from "../data/format";
+import { formatDayMonth } from "@/lib/format";
 import type { BillKind, DashboardData } from "../data/types";
 import { ListCard } from "./list-card";
 

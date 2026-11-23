@@ -4,11 +4,11 @@ import {
   addMonthsToMonth,
   monthRange,
   monthsToReach,
+  outstandingInvoices,
   simulatePrepayment,
   spendingAllowance,
   summarizeMonth,
   totalBalance,
-  type AmortizationSystem,
 } from "@finance-ia/finance-core";
 import type { HealthResult } from "@/features/health/compute";
 import type { HealthSources } from "@/features/health/inputs";
@@ -54,6 +54,7 @@ export function buildAssistantContext(
   const entries = sources.transactions;
 
   const current = summarizeMonth(entries, month);
+  const monthEnd = addDays(`${addMonthsToMonth(month, 1)}-01`, -1);
   const history = monthRange(addMonthsToMonth(month, -5), month).map((item) => {
     const summary = summarizeMonth(entries, item);
     return {
@@ -97,15 +98,29 @@ export function buildAssistantContext(
       (view) =>
         view.status !== "paid_off" &&
         view.debt.nextDueDate &&
-        view.debt.nextDueDate.startsWith(month) &&
-        view.debt.nextDueDate >= today,
+        // Vencem neste mês ou já venceram sem pagamento registrado.
+        view.debt.nextDueDate <= monthEnd,
     )
     .reduce((sum, view) => sum + Math.min(view.payment, view.debt.currentBalance), 0);
+  // Faturas de cartão a vencer até o fim do mês, descontado o que já foi pago.
+  const cards = (sources.cards ?? []).map((card) => ({
+    id: card.id,
+    closingDay: card.closingDay,
+    dueDay: card.dueDay,
+  }));
+  const invoiceEntries = entries.map((entry) => ({
+    ...entry,
+    invoiceMonth: entry.invoiceMonth ?? null,
+  }));
+  const cardInvoicesDue = outstandingInvoices(invoiceEntries, cards, {
+    from: today,
+    to: monthEnd,
+  }).total;
   const allowance = spendingAllowance({
     balanceNow,
     pendingIncome: current.income.pending,
     pendingExpense: current.expense.pending,
-    setAside: provisionsToSave + debtInstallmentsDue,
+    setAside: provisionsToSave + debtInstallmentsDue + cardInvoicesDue,
     today,
   });
 
@@ -170,6 +185,13 @@ export function buildAssistantContext(
         amount: reais(Math.min(view.payment, view.debt.currentBalance)),
         dueDate: view.debt.nextDueDate!,
       })),
+    ...outstandingInvoices(invoiceEntries, cards, { from: today, to: horizon }).items.map(
+      (item) => ({
+        title: "Fatura do cartão",
+        amount: reais(item.remaining),
+        dueDate: item.dueDate,
+      }),
+    ),
   ]
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
     .slice(0, 10);
@@ -218,7 +240,7 @@ export function buildAssistantContext(
           ? simulatePrepayment({
               balance: debt.currentBalance,
               monthlyRate: debt.monthlyRate,
-              system: debt.amortization as AmortizationSystem,
+              system: debt.amortization,
               payment: view.payment,
               remainingInstallments: view.schedule.rows.length || null,
               firstDate: debt.nextDueDate && debt.nextDueDate >= today ? debt.nextDueDate : today,
@@ -266,6 +288,7 @@ export function buildAssistantContext(
       pendingExpense: reais(current.expense.pending),
       provisionsToSave: reais(provisionsToSave),
       debtInstallmentsDue: reais(debtInstallmentsDue),
+      cardInvoicesDue: reais(cardInvoicesDue),
       projectedEndOfMonth: reais(allowance.projectedEndOfMonth),
       available: reais(allowance.available),
       perDay: reais(allowance.perDay),

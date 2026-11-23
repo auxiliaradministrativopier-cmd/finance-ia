@@ -1,6 +1,7 @@
 "use client";
 
-import { Monitor, Moon, Sun } from "lucide-react";
+import { ChevronRight, Monitor, Moon, Sun } from "lucide-react";
+import Link from "next/link";
 import { useTheme } from "next-themes";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alert } from "@/components/ui/alert";
@@ -223,6 +224,20 @@ function SettingsSections({
             ))}
           </div>
         </fieldset>
+      </Section>
+
+      <Section
+        id="privacidade"
+        title="Privacidade e dados"
+        description="Veja o que guardamos, baixe seus dados ou exclua sua conta."
+      >
+        <Link
+          href="/configuracoes/privacidade"
+          className="-ml-2 inline-flex h-control-sm items-center gap-1 self-start rounded-md px-2 text-label font-semibold text-brand hover:bg-brand-soft"
+        >
+          Abrir privacidade e dados
+          <ChevronRight className="size-4" aria-hidden="true" />
+        </Link>
       </Section>
     </div>
   );

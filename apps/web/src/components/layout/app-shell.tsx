@@ -1,5 +1,6 @@
 import { DemoModeBanner } from "@/components/feedback/demo-mode-banner";
 import { OfflineBanner } from "@/components/feedback/offline-banner";
+import { TimeZoneSync } from "@/features/settings/time-zone-sync";
 import { BottomNav } from "./bottom-nav";
 import { Sidebar } from "./sidebar";
 import { TopBar } from "./top-bar";
@@ -10,6 +11,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-dvh">
       <Sidebar />
       <div className="flex min-h-dvh flex-col lg:pl-sidebar">
+        <TimeZoneSync />
         <DemoModeBanner />
         <OfflineBanner />
         <TopBar />

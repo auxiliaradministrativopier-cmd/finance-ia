@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useAuth } from "@/features/auth/auth-provider";
+import { apiHeaders } from "@/lib/api-client";
 import { redactSensitive } from "./redact";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, type AssistantContext, type ChatEvent } from "./schema";
 
@@ -79,7 +80,7 @@ export function useChat(context: AssistantContext | null) {
         }
         const response = await fetch(ENDPOINT, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: { "Content-Type": "application/json", ...(await apiHeaders(token)) },
           body: JSON.stringify({ messages: history, context }),
           signal: controller.signal,
         });

@@ -11,7 +11,6 @@ export type Account = ModelOf<"accounts">;
 export type Card = ModelOf<"cards">;
 export type Category = ModelOf<"categories">;
 export type Recurrence = ModelOf<"recurrences">;
-export type InstallmentPlan = ModelOf<"installmentPlans">;
 
 export type EntryType = "income" | "expense";
 

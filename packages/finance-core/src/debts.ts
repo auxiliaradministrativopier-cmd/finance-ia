@@ -252,3 +252,143 @@ export function balanceHistory(input: {
     return { month, balance: known(month), estimated: false };
   });
 }
+
+/** Taxa anual equivalente a uma taxa mensal composta (em percentual): 1,5% a.m. → 19,56% a.a. */
+export function equivalentYearlyRate(monthlyRatePercent: number): number {
+  return ((1 + monthlyRatePercent / 100) ** 12 - 1) * 100;
+}
+
+export type DebtStatus = "active" | "overdue" | "paid_off" | "growing";
+
+export interface DebtSnapshotInput {
+  originalAmount: number;
+  currentBalance: number;
+  monthlyRate: number;
+  system: AmortizationSystem;
+  installmentAmount: number | null;
+  installmentCount: number | null;
+  /** Data da última parcela do contrato. */
+  endDate: DateString | null;
+  nextDueDate: DateString | null;
+  /** Parcelas normais já registradas no app. */
+  regularPaymentsCount: number;
+  today: DateString;
+}
+
+export interface DebtSnapshot {
+  remainingInstallments: number | null;
+  /** Parcela usada nos cálculos (informada ou calculada pela taxa e pelo prazo). */
+  payment: number;
+  schedule: Schedule;
+  percentPaid: number;
+  /** Juros deste mês sobre o saldo atual. */
+  monthInterest: number;
+  /** Última parcela pela projeção (null se a dívida não termina). */
+  projectedEndDate: DateString | null;
+  status: DebtStatus;
+}
+
+/**
+ * Situação de uma dívida hoje. As parcelas que faltam vêm da data final do contrato (vale para
+ * dívidas cadastradas no meio) ou, sem ela, do número de parcelas menos as pagas no app.
+ */
+export function debtSnapshot(input: DebtSnapshotInput): DebtSnapshot {
+  const firstDate =
+    input.nextDueDate && input.nextDueDate >= input.today ? input.nextDueDate : input.today;
+  let remainingInstallments: number | null = null;
+  if (input.endDate)
+    remainingInstallments = Math.max(
+      monthRange(monthOf(firstDate), monthOf(input.endDate)).length,
+      1,
+    );
+  else if (input.installmentCount)
+    remainingInstallments = Math.max(input.installmentCount - input.regularPaymentsCount, 1);
+
+  const scheduleInput: ScheduleInput = {
+    balance: input.currentBalance,
+    monthlyRate: input.monthlyRate,
+    system: input.system,
+    payment: input.installmentAmount,
+    remainingInstallments,
+    firstDate,
+  };
+  const schedule = amortizationSchedule(scheduleInput);
+  const payment =
+    input.system === "sac" ? (schedule.rows[0]?.payment ?? 0) : effectivePayment(scheduleInput);
+
+  let status: DebtStatus = "active";
+  if (input.currentBalance <= 0) status = "paid_off";
+  else if (schedule.neverEnds) status = "growing";
+  else if (input.nextDueDate && input.nextDueDate < input.today) status = "overdue";
+
+  return {
+    remainingInstallments,
+    payment,
+    schedule,
+    percentPaid: percentPaid(input.originalAmount, input.currentBalance),
+    monthInterest:
+      input.system === "none" ? 0 : monthlyInterest(input.currentBalance, input.monthlyRate),
+    projectedEndDate: schedule.neverEnds ? null : (schedule.rows.at(-1)?.date ?? null),
+    status,
+  };
+}
+
+export interface EvolutionPoint {
+  month: MonthString;
+  value: number;
+  projected: boolean;
+  estimated: boolean;
+}
+
+/**
+ * Evolução do saldo devedor: o realizado (pelos pagamentos) até hoje e a projeção do cronograma
+ * até a quitação. Reduz a no máximo `maxPoints` pontos, mantendo o primeiro, o de hoje e o último.
+ */
+export function debtEvolution(input: {
+  originalAmount: number;
+  currentBalance: number;
+  startDate: DateString;
+  trackedSince: MonthString;
+  payments: { date: DateString; principal: number }[];
+  schedule: Schedule;
+  today: DateString;
+  maxPoints?: number;
+}): EvolutionPoint[] {
+  const maxPoints = input.maxPoints ?? 30;
+  const history = balanceHistory({
+    originalAmount: input.originalAmount,
+    currentBalance: input.currentBalance,
+    startDate: input.startDate <= input.today ? input.startDate : input.today,
+    today: input.today,
+    trackedSince: input.trackedSince,
+    payments: input.payments,
+  }).map((point) => ({
+    month: point.month,
+    value: point.balance,
+    projected: false,
+    estimated: point.estimated,
+  }));
+
+  const lastMonth = history.at(-1)?.month ?? monthOf(input.today);
+  const projection = new Map<MonthString, number>();
+  for (const row of input.schedule.rows) {
+    const month = monthOf(row.date);
+    if (month > lastMonth) projection.set(month, row.balance);
+  }
+  const points = [
+    ...history,
+    ...[...projection].map(([month, value]) => ({
+      month,
+      value,
+      projected: true,
+      estimated: false,
+    })),
+  ];
+  if (points.length <= maxPoints) return points;
+  const step = Math.ceil(points.length / maxPoints);
+  const todayIndex = history.length - 1;
+  return points.filter(
+    (_, index) =>
+      index === 0 || index === todayIndex || index === points.length - 1 || index % step === 0,
+  );
+}

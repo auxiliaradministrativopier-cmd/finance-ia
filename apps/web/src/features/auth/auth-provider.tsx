@@ -1,8 +1,17 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { resetDataStore } from "@/data/store";
 import { backendMode, type BackendMode } from "@/lib/firebase/config";
-import { createAuthGateway, type AuthGateway } from "./gateway";
+import { createAuthGateway, runUserSetup, type AuthGateway } from "./gateway";
 import type { AuthStatus, AuthUser, SignUpInput } from "./types";
 
 export interface AuthContextValue {
@@ -22,7 +31,9 @@ export interface AuthContextValue {
   updatePhotoUrl: (url: string | null) => Promise<AuthUser>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   /** Token para chamar as rotas /api do próprio app. */
-  getIdToken: () => Promise<string | null>;
+  getIdToken: (forceRefresh?: boolean) => Promise<string | null>;
+  /** Confirma a identidade de novo (senha ou Google) antes de ações sensíveis. */
+  reauthenticate: (password: string | null) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -31,9 +42,11 @@ export interface AuthProviderProps {
   children: React.ReactNode;
   /** Permite injetar outra implementação (testes, Storybook). */
   gateway?: AuthGateway;
+  /** Configuração inicial ao abrir uma sessão já logada (padrão: perfil, preferências e categorias). */
+  setup?: (user: AuthUser) => Promise<void>;
 }
 
-export function AuthProvider({ children, gateway: injected }: AuthProviderProps) {
+export function AuthProvider({ children, gateway: injected, setup }: AuthProviderProps) {
   const [gateway] = useState<AuthGateway>(() => injected ?? createAuthGateway(backendMode));
   const [user, setUser] = useState<AuthUser | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
@@ -45,6 +58,16 @@ export function AuthProvider({ children, gateway: injected }: AuthProviderProps)
       setStatus(next ? "authenticated" : "unauthenticated");
     });
   }, [gateway]);
+
+  // Garante a configuração inicial também em sessões já abertas: se o cadastro foi interrompido
+  // (aba fechada ou página recarregada antes de gravar), perfil e categorias são criados agora.
+  // Uma vez por usuário nesta aba.
+  const setupDone = useRef<string | null>(null);
+  useEffect(() => {
+    if (!user || setupDone.current === user.uid || gateway.mode === "unconfigured") return;
+    setupDone.current = user.uid;
+    void (setup ?? runUserSetup)(user);
+  }, [user, gateway.mode, setup]);
 
   // As ações atualizam o estado na hora, sem esperar o próximo evento do provedor.
   const applyUser = useCallback((next: AuthUser | null) => {
@@ -71,13 +94,16 @@ export function AuthProvider({ children, gateway: injected }: AuthProviderProps)
         setSignedOutByUser(true);
         await gateway.signOut();
         applyUser(null);
+        // Depois de sair, nenhum dado financeiro fica no cache local do navegador.
+        await resetDataStore().catch(() => undefined);
       },
       updateDisplayName: async (name) =>
         applyUser(await gateway.updateDisplayName(name)) as AuthUser,
       updatePhotoUrl: async (url) => applyUser(await gateway.updatePhotoUrl(url)) as AuthUser,
       changePassword: (currentPassword, newPassword) =>
         gateway.changePassword(currentPassword, newPassword),
-      getIdToken: () => gateway.getIdToken(),
+      getIdToken: (forceRefresh) => gateway.getIdToken(forceRefresh),
+      reauthenticate: (password) => gateway.reauthenticate(password),
     }),
     [status, user, gateway, applyUser, signedOutByUser],
   );

@@ -47,6 +47,7 @@ export function useDashboard(): DashboardState {
     const health = computeHealth({
       today: cashFlow.today,
       accounts: cashFlow.accounts,
+      cards: cashFlow.cards,
       transactions: cashFlow.transactions,
       debts: debts.views,
       provisions: provisions.views,

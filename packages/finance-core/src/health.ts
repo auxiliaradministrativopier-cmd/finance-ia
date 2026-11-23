@@ -8,6 +8,7 @@ import {
   type MonthString,
 } from "./dates";
 import { balanceHistory, monthlyInterest } from "./debts";
+import { outstandingInvoices, type CardCycle } from "./invoices";
 import { provisionBalance, provisionPlan } from "./provisions";
 import { summarizeMonth, type LedgerEntry } from "./summary";
 
@@ -49,10 +50,14 @@ export function ifaBand(score: number): IfaBand {
 export interface HealthEntry extends LedgerEntry {
   createdAt: DateString | null;
   paidAt: DateString | null;
+  /** Fatura da compra no cartão (ou do pagamento de fatura). */
+  invoiceMonth?: string | null;
 }
 
 export interface HealthInput {
   accounts: AccountOpening[];
+  /** Cartões, para descontar da reserva as faturas a pagar. */
+  cards?: (CardCycle & { id: string })[];
   entries: HealthEntry[];
   debts: {
     type: string;
@@ -146,7 +151,11 @@ export function healthScore(
 ): HealthScore | null {
   const month = monthOf(asOf);
   const window = monthRange(addMonthsToMonth(month, -(WINDOW_MONTHS - 1)), month);
-  const entries = input.entries.filter((entry) => entry.date <= endOfMonth(month));
+  // Só os lançamentos da janela de 3 meses entram nos resumos (menos trabalho por mês do histórico).
+  const lastDay = endOfMonth(month);
+  const entries = input.entries.filter(
+    (entry) => entry.date <= lastDay && entry.month >= window[0]! && entry.month <= month,
+  );
   const summaries = window
     .map((item) => summarizeMonth(entries, item))
     .filter((summary) => summary.count > 0);
@@ -177,7 +186,15 @@ export function healthScore(
   const emergency = activeInvestments
     .filter((item) => item.isEmergencyReserve)
     .reduce((sum, item) => sum + item.currentValue, 0);
-  const reservePool = accountsTotal + emergency;
+  // Faturas de cartão a vencer já estão comprometidas: saem da reserva.
+  const openInvoices = outstandingInvoices(
+    input.entries
+      .filter((entry) => entry.date <= asOf)
+      .map((entry) => ({ ...entry, invoiceMonth: entry.invoiceMonth ?? null })),
+    input.cards ?? [],
+    { from: asOf, to: addDays(asOf, 62) },
+  ).total;
+  const reservePool = Math.max(accountsTotal - openInvoices, 0) + emergency;
   const reserveMonths = reservePool / avgExpense;
   const reserve = piecewise(reserveMonths, [
     [0, 0],
@@ -342,7 +359,12 @@ export function healthScore(
       "reserve",
       reserve,
       true,
-      { reserveMonths: round2(reserveMonths), reservePool, target: Math.round(avgExpense * 6) },
+      {
+        reserveMonths: round2(reserveMonths),
+        reservePool,
+        target: Math.round(avgExpense * 6),
+        openInvoices,
+      },
     ],
     [
       "debts",

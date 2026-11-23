@@ -28,6 +28,7 @@ export const assistantContextSchema = z.object({
     pendingExpense: reais,
     provisionsToSave: reais,
     debtInstallmentsDue: reais,
+    cardInvoicesDue: reais,
     projectedEndOfMonth: reais,
     available: reais,
     perDay: reais,

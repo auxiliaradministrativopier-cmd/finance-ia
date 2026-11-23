@@ -1,6 +1,11 @@
 "use client";
 
-import { invoiceFor } from "@finance-ia/finance-core";
+import {
+  invoiceBalance,
+  invoiceFor,
+  isCardPurchase,
+  isInvoicePayment,
+} from "@finance-ia/finance-core";
 import { Archive, ArchiveRestore, CreditCard, Pencil, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
@@ -15,10 +20,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { getRepositories } from "@/data/repositories";
 import { useAuth } from "@/features/auth/auth-provider";
-import { formatMonthTitle, formatShortDate } from "@/features/cash-flow/format";
+import { formatMonthTitle, formatShortDate } from "@/lib/format";
 import type { Card as CardModel } from "@/features/cash-flow/types";
 import { useCashFlowData } from "@/features/cash-flow/use-cash-flow";
+import { createCardService, payableInvoices } from "../service";
 import { brands, CardFormSheet } from "./card-form-sheet";
+import { PayInvoiceSheet } from "./pay-invoice-sheet";
 
 /** Tela 27: Cartões. Fatura e limite usado calculados pelos lançamentos (até as Cloud Functions assumirem). */
 export function CardsPage() {
@@ -30,28 +37,45 @@ export function CardsPage() {
     card: null,
   });
 
+  const [paying, setPaying] = useState<CardModel | null>(null);
+
   const active = data.cards.filter((card) => !card.archived);
   const archived = data.cards.filter((card) => card.archived);
 
   const usage = useMemo(() => {
     const map = new Map<
       string,
-      { invoice: ReturnType<typeof invoiceFor>; invoiceTotal: number; used: number }
+      {
+        invoice: ReturnType<typeof invoiceFor>;
+        invoiceTotal: number;
+        invoicePaid: number;
+        used: number;
+        payable: ReturnType<typeof payableInvoices>;
+      }
     >();
     for (const card of data.cards) {
       const invoice = invoiceFor(data.today, card);
       const items = data.transactions.filter(
         (transaction) => transaction.cardId === card.id && transaction.invoiceMonth,
       );
+      const current = invoiceBalance(items, card.id, invoice.invoiceMonth);
+      const payable = payableInvoices(card, items, data.today, invoice.dueDate);
       map.set(card.id, {
         invoice,
-        invoiceTotal: items
-          .filter((t) => t.invoiceMonth === invoice.invoiceMonth)
-          .reduce((sum, t) => sum + t.amount, 0),
-        // Limite comprometido: fatura atual e futuras (parcelas incluídas).
-        used: items
-          .filter((t) => (t.invoiceMonth ?? "") >= invoice.invoiceMonth)
-          .reduce((sum, t) => sum + t.amount, 0),
+        invoiceTotal: current.purchases,
+        invoicePaid: current.paid,
+        // Limite comprometido: fatura atual e futuras (parcelas incluídas), menos o que já foi pago.
+        used: Math.max(
+          items
+            .filter((t) => (t.invoiceMonth ?? "") >= invoice.invoiceMonth)
+            .reduce(
+              (sum, t) =>
+                sum + (isCardPurchase(t) ? t.amount : isInvoicePayment(t) ? -t.amount : 0),
+              0,
+            ),
+          0,
+        ),
+        payable,
       });
     }
     return map;
@@ -147,8 +171,24 @@ export function CardsPage() {
                     <span className="text-caption text-ink-muted">
                       Fecha em {formatShortDate(info.invoice.closingDate)} · vence em{" "}
                       {formatShortDate(info.invoice.dueDate)}
+                      {info.invoicePaid > 0 ? (
+                        <>
+                          {" "}
+                          · pago <Amount cents={info.invoicePaid} />
+                        </>
+                      ) : null}
                     </span>
                   </div>
+                ) : null}
+                {info && info.payable.length > 0 ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="self-start"
+                    onClick={() => setPaying(card)}
+                  >
+                    Pagar fatura
+                  </Button>
                 ) : null}
                 <div className="flex flex-col gap-1.5">
                   <ProgressBar
@@ -193,6 +233,21 @@ export function CardsPage() {
           </Card>
         </section>
       ) : null}
+      <PayInvoiceSheet
+        card={paying}
+        invoices={paying ? (usage.get(paying.id)?.payable ?? []) : []}
+        accounts={data.accounts.filter((account) => !account.archived)}
+        today={data.today}
+        onOpenChange={(open) => {
+          if (!open) setPaying(null);
+        }}
+        onSubmit={async (payment) => {
+          if (!user || !paying) return;
+          await createCardService().payInvoice(user.uid, paying, payment);
+          toast({ title: "Fatura paga. O valor saiu da conta escolhida." });
+          setPaying(null);
+        }}
+      />
       <CardFormSheet
         open={sheet.open}
         onOpenChange={(open) => setSheet((current) => ({ ...current, open }))}

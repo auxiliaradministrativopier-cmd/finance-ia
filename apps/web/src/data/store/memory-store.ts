@@ -3,6 +3,9 @@ import type { DataStore, DocumentData, QueryOptions, StoredDocument } from "./ty
 
 type Listener = () => void;
 
+const isIncrement = (value: unknown): value is { __increment: number } =>
+  typeof value === "object" && value !== null && "__increment" in value;
+
 function parentOf(path: string): string {
   return path.slice(0, path.lastIndexOf("/"));
 }
@@ -45,6 +48,7 @@ export function createMemoryStore(persistence?: {
   const docs = new Map<string, DocumentData>(Object.entries(persistence?.load() ?? {}));
   const listeners = new Set<Listener>();
   let counter = 0;
+  let lastStamp = 0;
 
   const clone = <T>(value: T): T => structuredClone(value);
   const notify = () => {
@@ -69,7 +73,8 @@ export function createMemoryStore(persistence?: {
         target[part] = child && typeof child === "object" && !Array.isArray(child) ? child : {};
         target = target[part] as Record<string, unknown>;
       }
-      target[parts[parts.length - 1]!] = value;
+      const field = parts[parts.length - 1]!;
+      target[field] = isIncrement(value) ? Number(target[field] ?? 0) + value.__increment : value;
     }
     docs.set(path, next);
   }
@@ -134,6 +139,11 @@ export function createMemoryStore(persistence?: {
       notify();
     },
 
-    now: () => new Date(),
+    // Sempre crescente, como o carimbo do servidor: duas gravações nunca têm a mesma data.
+    now: () => {
+      lastStamp = Math.max(Date.now(), lastStamp + 1);
+      return new Date(lastStamp);
+    },
+    increment: (delta) => ({ __increment: delta }),
   };
 }

@@ -2,6 +2,7 @@ import {
   createUserWithEmailAndPassword,
   EmailAuthProvider,
   reauthenticateWithCredential,
+  reauthenticateWithPopup,
   updatePassword,
   GoogleAuthProvider,
   onAuthStateChanged,
@@ -46,7 +47,22 @@ export function createFirebaseGateway(
     mode,
 
     subscribe(listener) {
-      return onAuthStateChanged(auth(), (user) => listener(user ? toAuthUser(user) : null));
+      return onAuthStateChanged(auth(), (user) => {
+        if (!user) return listener(null);
+        // E-mail já confirmado, mas o token salvo é de antes da confirmação (a página recarregou
+        // antes de gravar o novo): renova antes de liberar o app, para as Security Rules aceitarem.
+        void (async () => {
+          if (user.emailVerified) {
+            try {
+              const { claims } = await user.getIdTokenResult();
+              if (claims.email_verified !== true) await user.getIdToken(true);
+            } catch {
+              // Sem conexão: segue com o token atual; ele é renovado quando a rede voltar.
+            }
+          }
+          listener(toAuthUser(user));
+        })();
+      });
     },
 
     async signInWithEmail(email, password) {
@@ -141,9 +157,29 @@ export function createFirebaseGateway(
       }
     },
 
-    async getIdToken() {
+    async getIdToken(forceRefresh = false) {
       const user = auth().currentUser;
-      return user ? user.getIdToken() : null;
+      return user ? user.getIdToken(forceRefresh) : null;
+    },
+
+    async reauthenticate(password) {
+      const user = auth().currentUser;
+      if (!user) throw new AuthError("requires-recent-login");
+      try {
+        if (password !== null && user.email) {
+          await reauthenticateWithCredential(
+            user,
+            EmailAuthProvider.credential(user.email, password),
+          );
+        } else {
+          await reauthenticateWithPopup(user, new GoogleAuthProvider());
+        }
+      } catch (error) {
+        const authError = toAuthError(error);
+        throw authError.code === "invalid-credentials"
+          ? new AuthError("wrong-current-password")
+          : authError;
+      }
     },
 
     async changePassword(currentPassword, newPassword) {

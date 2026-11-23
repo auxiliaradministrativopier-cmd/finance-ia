@@ -22,6 +22,7 @@ const context: AssistantContext = {
     pendingExpense: 1200,
     provisionsToSave: 300,
     debtInstallmentsDue: 0,
+    cardInvoicesDue: 0,
     projectedEndOfMonth: 1800,
     available: 1500,
     perDay: 166.66,
@@ -50,7 +51,7 @@ function setup(
 ) {
   const calls: ModelRequest[] = [];
   const handler = createChatHandler({
-    verify: async (header) => (header === "Bearer valido" ? { uid: "u1" } : null),
+    verify: async (header) => (header === "Bearer valido" ? { uid: "u1", authTime: null } : null),
     limiter: createRateLimiter([{ windowMs: 60_000, max: options.max ?? 10 }]),
     config: () => ({
       apiKey: options.apiKey === undefined ? "sk-teste" : options.apiKey,

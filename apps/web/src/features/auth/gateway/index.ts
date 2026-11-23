@@ -33,12 +33,27 @@ export function withUserSetup(gateway: AuthGateway, setup = runUserSetup): AuthG
   };
 }
 
-async function runUserSetup(user: AuthUser, displayName?: string): Promise<void> {
-  try {
-    await ensureUserSetup(await getDataStore(), user, displayName);
-  } catch (error) {
-    console.error("Não foi possível concluir a configuração inicial do usuário.", error);
-  }
+const setupRuns = new Map<string, Promise<void>>();
+
+/**
+ * Configuração inicial (perfil, preferências, categorias). Não faz nada se já existir.
+ * Uma execução por vez por usuário: o cadastro e a abertura da sessão não gravam em paralelo.
+ */
+export function runUserSetup(user: AuthUser, displayName?: string): Promise<void> {
+  const running = setupRuns.get(user.uid);
+  if (running) return running;
+  const run = (async () => {
+    try {
+      await ensureUserSetup(await getDataStore(), user, displayName);
+    } catch (error) {
+      console.error("Não foi possível concluir a configuração inicial do usuário.", error);
+    } finally {
+      // Só evita execuções simultâneas; depois de terminar, pode rodar de novo (não faz nada se já existe).
+      setupRuns.delete(user.uid);
+    }
+  })();
+  setupRuns.set(user.uid, run);
+  return run;
 }
 
 export function createAuthGateway(mode: BackendMode): AuthGateway {

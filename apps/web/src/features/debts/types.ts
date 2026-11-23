@@ -1,10 +1,10 @@
-import type { Schedule } from "@finance-ia/finance-core";
+import type { DebtStatus, Schedule } from "@finance-ia/finance-core";
 import type { Repositories } from "@/data/repositories";
 
 export type Debt = Awaited<ReturnType<Repositories["debts"]["get"]>>;
 export type DebtPayment = Awaited<ReturnType<ReturnType<Repositories["debtPayments"]>["get"]>>;
 
-export type DebtStatus = "active" | "overdue" | "paid_off" | "growing";
+export type { DebtStatus };
 
 /** Dívida com pagamentos, percentual pago e cronograma calculados. */
 export interface DebtView {

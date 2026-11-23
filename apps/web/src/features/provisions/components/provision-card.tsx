@@ -18,7 +18,7 @@ import { Card } from "@/components/ui/card";
 import { CategoryIcon } from "@/components/ui/category-icon";
 import { DropdownMenu, type DropdownItem } from "@/components/ui/dropdown-menu";
 import { ProgressBar } from "@/components/ui/progress-bar";
-import { formatShortDate } from "@/features/cash-flow/format";
+import { formatShortDate } from "@/lib/format";
 import { kindInfo } from "../kinds";
 import type { ProvisionView } from "../types";
 

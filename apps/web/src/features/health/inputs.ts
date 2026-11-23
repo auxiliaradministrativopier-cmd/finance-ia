@@ -1,9 +1,9 @@
-import { monthOf, todayIn, type HealthInput } from "@finance-ia/finance-core";
+import { monthOf, type HealthInput } from "@finance-ia/finance-core";
+import { dayOf } from "@/lib/time";
 import type { DebtView } from "@/features/debts/types";
 import type { ProvisionView } from "@/features/provisions/types";
 
-const TIME_ZONE = "America/Sao_Paulo";
-const day = (value: Date | null | undefined) => (value ? todayIn(TIME_ZONE, value) : null);
+const day = (value: Date | null | undefined) => (value ? dayOf(value) : null);
 
 /** Os dados do app no formato que o cálculo do IFA (finance-core) espera. */
 export interface HealthSources {
@@ -14,6 +14,7 @@ export interface HealthSources {
     initialBalanceDate: string;
     includeInTotal: boolean;
   }[];
+  cards?: { id: string; closingDay: number; dueDay: number }[];
   transactions: {
     type: "income" | "expense" | "transfer";
     status: "paid" | "pending" | "scheduled";
@@ -24,6 +25,7 @@ export interface HealthSources {
     toAccountId: string | null;
     cardId: string | null;
     categoryId: string | null;
+    invoiceMonth?: string | null;
     createdAt: Date | null;
     paidAt?: Date | null;
   }[];
@@ -52,6 +54,11 @@ export function buildHealthInput(sources: HealthSources): HealthInput {
   const investmentValue = new Map(sources.investments.map((item) => [item.id, item.currentValue]));
   return {
     accounts: sources.accounts,
+    cards: (sources.cards ?? []).map((card) => ({
+      id: card.id,
+      closingDay: card.closingDay,
+      dueDay: card.dueDay,
+    })),
     entries: sources.transactions.map((entry) => ({
       type: entry.type,
       status: entry.status,
@@ -62,6 +69,7 @@ export function buildHealthInput(sources: HealthSources): HealthInput {
       toAccountId: entry.toAccountId,
       cardId: entry.cardId,
       categoryId: entry.categoryId,
+      invoiceMonth: entry.invoiceMonth ?? null,
       createdAt: day(entry.createdAt),
       paidAt: day(entry.paidAt),
     })),

@@ -1,7 +1,7 @@
 import { addMonthsToMonth } from "@finance-ia/finance-core";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatMonthTitle } from "../format";
+import { formatMonthTitle } from "@/lib/format";
 
 export function MonthSwitcher({
   month,

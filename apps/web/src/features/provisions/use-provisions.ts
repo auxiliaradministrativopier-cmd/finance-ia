@@ -1,10 +1,11 @@
 "use client";
 
-import { provisionBalance, provisionPlan, todayIn } from "@finance-ia/finance-core";
+import { provisionBalance, provisionPlan } from "@finance-ia/finance-core";
 import { useEffect, useMemo, useState } from "react";
 import type { DataError } from "@/data/errors";
 import { getRepositories } from "@/data/repositories";
 import { useLiveList } from "@/data/use-live-list";
+import { dayOf, today as currentDay } from "@/lib/time";
 import { useAuth } from "@/features/auth/auth-provider";
 import { createProvisionService } from "./service";
 import type { Contribution, Provision, ProvisionView } from "./types";
@@ -17,7 +18,7 @@ export function getProvisionService() {
 
 /** Data (YYYY-MM-DD) de criação do provisionamento, no fuso do app; hoje enquanto o servidor não confirma. */
 function startDateOf(provision: Provision, today: string): string {
-  return provision.createdAt ? todayIn("America/Sao_Paulo", provision.createdAt) : today;
+  return provision.createdAt ? dayOf(provision.createdAt) : today;
 }
 
 /** Monta as visões (saldo + plano) e os totais a partir dos dados. Função pura, testada à parte. */
@@ -68,7 +69,7 @@ export function useProvisions() {
   const list = useLiveList(getRepositories().provisions);
   const [contributions, setContributions] = useState<Record<string, Contribution[]>>({});
   const [contributionError, setContributionError] = useState<DataError | null>(null);
-  const today = todayIn();
+  const today = currentDay();
 
   // Um acompanhamento por provisionamento (subcoleção contributions de cada um).
   const ids = list.items.map((provision) => provision.id).join(",");

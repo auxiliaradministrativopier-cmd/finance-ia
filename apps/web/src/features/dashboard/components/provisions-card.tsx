@@ -1,7 +1,7 @@
 import { CircleCheck, TriangleAlert } from "lucide-react";
 import { Amount } from "@/components/ui/amount";
 import { ProgressBar } from "@/components/ui/progress-bar";
-import { formatDayMonth } from "../data/format";
+import { formatDayMonth } from "@/lib/format";
 import type { DashboardData } from "../data/types";
 import { ListCard } from "./list-card";
 

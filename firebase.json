@@ -1,4 +1,11 @@
 {
+  "apphosting": [
+    {
+      "backendId": "finance-ia-web",
+      "rootDir": "apps/web",
+      "ignore": ["node_modules", ".git", "firebase-debug.log", "firebase-debug.*.log", "functions"]
+    }
+  ],
   "firestore": {
     "rules": "firebase/firestore.rules",
     "indexes": "firebase/firestore.indexes.json"

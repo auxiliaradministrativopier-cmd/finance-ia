@@ -58,6 +58,28 @@ export async function getDataStore(): Promise<DataStore> {
   }
 }
 
+/**
+ * Ao sair da conta: encerra o Firestore e apaga o cache local, para que os dados do usuário
+ * não fiquem no aparelho (computadores compartilhados). No modo demonstração não faz nada.
+ */
+export async function resetDataStore(): Promise<void> {
+  if (backendMode !== "firebase" && backendMode !== "emulator") return;
+  store = null;
+  const { clearLocalData } = await import("@/lib/firebase/firestore");
+  await clearLocalData();
+}
+
+/** Modo demonstração: apaga os dados guardados neste navegador (usado ao excluir a conta). */
+export function clearDemoData(): void {
+  if (backendMode !== "demo") return;
+  try {
+    window.localStorage.removeItem(DEMO_STORAGE_KEY);
+  } catch {
+    // Sem armazenamento: nada a apagar.
+  }
+  store = null;
+}
+
 /** Somente para testes: injeta um armazenamento. */
 export function setDataStoreForTests(next: DataStore | null) {
   store = next;

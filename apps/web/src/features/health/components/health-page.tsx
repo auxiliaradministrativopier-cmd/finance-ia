@@ -17,20 +17,14 @@ import { Card, CardDescription, CardTitle, Overline } from "@/components/ui/card
 import { CategoryIcon } from "@/components/ui/category-icon";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChartCard, DataTable } from "@/features/dashboard/components/chart-card";
-import { formatMonthLong, formatMonthShort } from "@/features/dashboard/data/format";
+import { ChartCard, DataTable } from "@/components/charts/chart-card";
+import { formatMonthLong, formatMonthShort } from "@/lib/format";
+import { isScreenAvailable } from "@/config/screens";
 import { cn } from "@/lib/cn";
 import { usePrivacy } from "@/providers/privacy-provider";
 import { bandInfo, explainPillar, pillarInfo, recommendationsFor } from "../labels";
 import { useHealth } from "../use-health";
-import { IfaGauge } from "./ifa-gauge";
-
-export const bandTone = {
-  critical: "danger",
-  attention: "warning",
-  healthy: "success",
-  excellent: "ai",
-} as const;
+import { bandTone, IfaGauge } from "@/components/ifa/ifa-gauge";
 
 const BANDS: IfaBand[] = ["critical", "attention", "healthy", "excellent"];
 
@@ -164,13 +158,15 @@ function Recommendations({ score, hidden }: { score: HealthScore; hidden: boolea
                   </span>
                 </div>
                 <p className="text-body text-ink-muted">{item.description}</p>
-                <Link
-                  href={item.href}
-                  className="-ml-2 inline-flex h-control-sm items-center gap-1 self-start rounded-md px-2 text-label font-semibold text-brand hover:bg-brand-soft"
-                >
-                  {item.action}
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </Link>
+                {isScreenAvailable(item.href) ? (
+                  <Link
+                    href={item.href}
+                    className="-ml-2 inline-flex h-control-sm items-center gap-1 self-start rounded-md px-2 text-label font-semibold text-brand hover:bg-brand-soft"
+                  >
+                    {item.action}
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                  </Link>
+                ) : null}
               </div>
             </li>
           ))}

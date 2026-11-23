@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { allSidebarHrefs, findActiveHref, isTabActive, tabNavigation } from "../navigation";
-import { screens } from "../screens";
+import { isScreenAvailable, screens } from "../screens";
 
 const appDir = join(__dirname, "..", "..", "app");
 
@@ -52,5 +52,14 @@ describe("item ativo", () => {
     expect(isTabActive("/saude-financeira", ia)).toBe(true);
     expect(isTabActive("/configuracoes", inicio)).toBe(true);
     expect(isTabActive("/fluxo", inicio)).toBe(false);
+  });
+});
+
+describe("telas disponíveis", () => {
+  it("só as telas da fase 1 contam como prontas para receber links", () => {
+    expect(isScreenAvailable("/patrimonio/dividas")).toBe(true);
+    expect(isScreenAvailable("/configuracoes/privacidade")).toBe(true);
+    expect(isScreenAvailable("/patrimonio/investimentos")).toBe(false);
+    expect(isScreenAvailable("/nao-existe")).toBe(false);
   });
 });

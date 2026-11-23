@@ -2,7 +2,7 @@
 
 import { formatMoney } from "@finance-ia/shared";
 import { usePrivacy } from "@/providers/privacy-provider";
-import { formatCompactCurrency } from "../data/format";
+import { formatCompactCurrency } from "@/lib/format";
 
 /** Formatadores que respeitam o modo "ocultar valores", para gráficos e textos livres. */
 export function useMoneyFormatters() {

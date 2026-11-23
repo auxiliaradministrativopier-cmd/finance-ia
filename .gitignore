@@ -30,3 +30,7 @@ ui-debug.log*
 !.vscode/extensions.json
 .idea/
 .firebaserc
+
+# Playwright (testes de ponta a ponta)
+test-results/
+playwright-report/

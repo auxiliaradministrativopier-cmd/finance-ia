@@ -27,7 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TextField } from "@/components/ui/text-field";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/features/auth/auth-provider";
-import { StatTile } from "@/features/dashboard/components/stat-tile";
+import { StatTile } from "@/components/ui/stat-tile";
 import { cn } from "@/lib/cn";
 import {
   applyFilters,
@@ -36,7 +36,7 @@ import {
   type StatusFilter,
   type TypeFilter,
 } from "../filters";
-import { formatDayHeading, formatMonthTitle } from "../format";
+import { formatDayHeading, formatMonthTitle } from "@/lib/format";
 import type { Transaction } from "../types";
 import { getCashFlowService, useCashFlowData } from "../use-cash-flow";
 import { EntrySheet } from "./entry-sheet";

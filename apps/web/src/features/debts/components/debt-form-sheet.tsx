@@ -1,6 +1,11 @@
 "use client";
 
-import { addMonths, monthlyInterest, pricePayment } from "@finance-ia/finance-core";
+import {
+  addMonths,
+  equivalentYearlyRate,
+  monthlyInterest,
+  pricePayment,
+} from "@finance-ia/finance-core";
 import { formatMoney } from "@finance-ia/shared";
 import { useState } from "react";
 import { Alert } from "@/components/ui/alert";
@@ -13,6 +18,7 @@ import { TextField } from "@/components/ui/text-field";
 import { DataError } from "@/data/errors";
 import type { DebtInput } from "@/data/models/entities";
 import { cn } from "@/lib/cn";
+import { formatRate, parseRate } from "@/lib/format";
 import { amortizationLabels, debtGroups, groupOf, type DebtGroup, type DebtType } from "../kinds";
 import type { Debt } from "../types";
 
@@ -52,22 +58,6 @@ export function DebtFormSheet({
   );
 }
 
-/** "2,5" → 2.5. Vazio ou inválido → NaN. */
-export function parseRate(text: string): number {
-  const normalized = text.trim().replace(/\./g, "").replace(",", ".");
-  if (!/^\d+(\.\d+)?$/.test(normalized)) return Number.NaN;
-  return Number(normalized);
-}
-
-export function formatRate(rate: number): string {
-  return rate.toLocaleString("pt-BR", { maximumFractionDigits: 4 });
-}
-
-/** Taxa anual equivalente a uma taxa mensal composta. */
-export function yearlyRate(monthly: number): number {
-  return ((1 + monthly / 100) ** 12 - 1) * 100;
-}
-
 function DebtForm({
   debt,
   defaultGroup,
@@ -84,8 +74,7 @@ function DebtForm({
   const initialGroup = debt ? groupOf(debt.type).value : (defaultGroup ?? "loan");
   const [group, setGroup] = useState<DebtGroup>(initialGroup);
   const [type, setType] = useState<DebtType>(
-    (debt?.type as DebtType) ??
-      debtGroups.find((item) => item.value === initialGroup)!.types[0]!.value,
+    debt?.type ?? debtGroups.find((item) => item.value === initialGroup)!.types[0]!.value,
   );
   const [name, setName] = useState(debt?.name ?? "");
   const [creditor, setCreditor] = useState(debt?.creditor ?? "");
@@ -268,7 +257,7 @@ function DebtForm({
             error={errors.monthlyRate}
             hint={
               Number.isFinite(rate) && rate > 0
-                ? `Equivale a ${formatRate(Math.round(yearlyRate(rate) * 100) / 100)}% ao ano.`
+                ? `Equivale a ${formatRate(Math.round(equivalentYearlyRate(rate) * 100) / 100)}% ao ano.`
                 : "Está no contrato ou na fatura."
             }
           />

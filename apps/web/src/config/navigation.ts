@@ -1,7 +1,6 @@
 import {
   ArrowLeftRight,
   BookOpen,
-  ChartPie,
   CreditCard,
   Flag,
   FileText,
@@ -111,9 +110,6 @@ export const tabNavigation: [TabItem, TabItem, TabItem, TabItem] = [
     matches: ["/ia", "/saude-financeira", "/aprender", "/relatorios"],
   },
 ];
-
-/** Ícone usado para relatórios e gráficos em atalhos. */
-export const reportsIcon = ChartPie;
 
 function matchesPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);

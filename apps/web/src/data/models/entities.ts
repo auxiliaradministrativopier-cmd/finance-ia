@@ -123,7 +123,12 @@ export const transactionInput = z
       issue("accountId", "Escolha uma conta ou um cartão.");
     }
     if (value.cardId && !value.invoiceMonth) issue("invoiceMonth", "Informe a fatura da compra.");
-    if (value.type === "transfer") {
+    if (value.type === "transfer" && value.cardId) {
+      // Pagamento de fatura: sai da conta e vai para o cartão.
+      if (!value.accountId) issue("accountId", "Escolha a conta que pagou a fatura.");
+      if (value.toAccountId) issue("toAccountId", "O pagamento de fatura vai para o cartão.");
+      if (value.categoryId) issue("categoryId", "Pagamento de fatura não tem categoria.");
+    } else if (value.type === "transfer") {
       if (!value.accountId || !value.toAccountId)
         issue("toAccountId", "Escolha as contas de origem e de destino.");
       else if (value.accountId === value.toAccountId)
@@ -374,6 +379,8 @@ export const debtPaymentInput = z.object({
   date: dateString,
   note: z.string().trim().max(120, "Use no máximo 120 caracteres.").nullable().default(null),
   transactionId: nullableId,
+  /** Vencimento da dívida antes deste pagamento (para desfazer com precisão). */
+  previousDueDate: dateString.nullable().default(null),
 });
 
 export type DebtPaymentInput = z.input<typeof debtPaymentInput>;

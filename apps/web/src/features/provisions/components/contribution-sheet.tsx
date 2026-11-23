@@ -9,7 +9,7 @@ import { MoneyField } from "@/components/ui/money-field";
 import { Sheet } from "@/components/ui/sheet";
 import { TextField } from "@/components/ui/text-field";
 import { DataError } from "@/data/errors";
-import { formatShortDate } from "@/features/cash-flow/format";
+import { formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import type { ProvisionView } from "../types";
 

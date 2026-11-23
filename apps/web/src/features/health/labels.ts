@@ -1,5 +1,6 @@
 import type { HealthScore, IfaBand, PillarId, PillarResult } from "@finance-ia/finance-core";
 import { formatMoney } from "@finance-ia/shared";
+import { formatMonthsDecimal } from "@/lib/format";
 
 export const bandInfo: Record<IfaBand, { label: string; range: string; summary: string }> = {
   critical: {
@@ -56,11 +57,6 @@ export const pillarInfo: Record<PillarId, { label: string; icon: string; questio
 };
 
 const percent = (ratio: number) => `${Math.round(ratio * 100)}%`;
-const monthsText = (value: number) => {
-  const rounded = Math.round(value * 10) / 10;
-  if (rounded < 1) return "menos de 1 mês";
-  return `${rounded.toLocaleString("pt-BR")} ${rounded === 1 ? "mês" : "meses"}`;
-};
 
 /** A frase que explica o número de cada pilar, com os dados do próprio usuário. */
 export function explainPillar(pillar: PillarResult, hidden = false): string {
@@ -72,7 +68,7 @@ export function explainPillar(pillar: PillarResult, hidden = false): string {
         ? `Sobram ${percent(f.savingsRate!)} da renda: média de ${money(f.avgIncome! - f.avgExpense!)} por mês nos últimos ${f.months} ${f.months === 1 ? "mês" : "meses"}.`
         : `As despesas passam a renda em ${percent(-f.savingsRate!)}: faltam ${money(f.avgExpense! - f.avgIncome!)} por mês, em média.`;
     case "reserve":
-      return `O dinheiro em contas cobre ${monthsText(f.reserveMonths!)} de despesas. O ideal são 6 meses (${money(f.target!)}).`;
+      return `O dinheiro em contas cobre ${formatMonthsDecimal(f.reserveMonths!)} de despesas. O ideal são 6 meses (${money(f.target!)}).`;
     case "debts":
       if (f.openCount === 0) return "Nenhuma dívida em aberto.";
       if (f.growingCount! > 0)
@@ -97,7 +93,7 @@ export function explainPillar(pillar: PillarResult, hidden = false): string {
         .concat(` em ${f.bills} contas dos últimos 3 meses.`);
     case "investments":
       return f.invested! > 0
-        ? `Investido: ${money(f.invested!)}, o equivalente a ${monthsText(f.investedMonths!)} de despesas.`
+        ? `Investido: ${money(f.invested!)}, o equivalente a ${formatMonthsDecimal(f.investedMonths!)} de despesas.`
         : "Nenhum investimento além da reserva ainda.";
     case "goals":
       return f.items === 0

@@ -19,6 +19,8 @@ export type ModelStreamer = (request: ModelRequest) => AsyncIterable<ChatEvent>;
 
 export interface ChatHandlerDeps {
   verify: (authorization: string | null) => Promise<VerifiedUser | null>;
+  /** App Check (quando configurado): o pedido precisa vir do app de verdade. */
+  appCheck?: (header: string | null) => Promise<boolean>;
   limiter: RateLimiter;
   config: () => AiConfig;
   stream: ModelStreamer;
@@ -46,6 +48,9 @@ export function createChatHandler(deps: ChatHandlerDeps) {
   return async function POST(request: Request): Promise<Response> {
     const user = await deps.verify(request.headers.get("authorization"));
     if (!user) return json(401, "Sua sessão expirou. Entre de novo para usar o assistente.");
+    if (deps.appCheck && !(await deps.appCheck(request.headers.get("x-firebase-appcheck")))) {
+      return json(401, "Não conseguimos confirmar que o pedido veio do app. Atualize a página.");
+    }
 
     const declared = Number(request.headers.get("content-length") ?? 0);
     if (declared > MAX_BODY_BYTES)
@@ -72,7 +77,7 @@ export function createChatHandler(deps: ChatHandlerDeps) {
       );
     }
 
-    const limit = deps.limiter.take(user.uid);
+    const limit = await deps.limiter.take(user.uid);
     if (!limit.ok) {
       return json(
         429,
@@ -120,7 +125,12 @@ export function createChatHandler(deps: ChatHandlerDeps) {
             });
           }
         } finally {
-          controller.close();
+          // Se o usuário cancelou, o stream já está fechado: fechar de novo lançaria erro.
+          try {
+            controller.close();
+          } catch {
+            // Já fechado.
+          }
         }
       },
     });

@@ -12,5 +12,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     css: false,
+    // Os testes de ponta a ponta (Playwright) rodam com `pnpm e2e`.
+    exclude: ["e2e/**", "node_modules/**"],
   },
 });
