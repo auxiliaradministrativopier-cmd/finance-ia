@@ -36,6 +36,11 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  {
+    // Testes de ponta a ponta imprimem relatórios (ex.: tabela de performance).
+    files: ["e2e/**"],
+    rules: { "no-console": "off" },
+  },
   globalIgnores([".next/**", "out/**", "build/**", "coverage/**", "next-env.d.ts"]),
 ]);
 
