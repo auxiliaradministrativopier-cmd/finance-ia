@@ -38,3 +38,18 @@ describe("columnPath", () => {
     expect(columnPath(0, 100, 20, 0)).toBe("");
   });
 });
+
+describe("série plana", () => {
+  it("parte do zero e não repete marcas quando todos os valores são iguais", () => {
+    const ticks = niceTicks(1_150_000, 1_150_000, 4);
+    expect(ticks[0]).toBe(0);
+    expect(new Set(ticks).size).toBe(ticks.length);
+    expect(ticks.at(-1)!).toBeGreaterThanOrEqual(1_150_000);
+  });
+
+  it("valores negativos iguais ganham margem dos dois lados", () => {
+    const ticks = niceTicks(-50_000, -50_000, 4);
+    expect(ticks[0]!).toBeLessThan(-50_000);
+    expect(ticks.at(-1)!).toBeGreaterThan(-50_000);
+  });
+});

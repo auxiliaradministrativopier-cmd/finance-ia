@@ -166,7 +166,7 @@ export const mockDashboard: DashboardData = {
       tone: "success",
       title: "Meta Viagem para o Chile passou de 70%",
       description: "No ritmo atual, você chega lá em maio de 2027.",
-      href: "/planejar/metas",
+      href: "/planejar/provisionamentos",
     },
   ],
 };

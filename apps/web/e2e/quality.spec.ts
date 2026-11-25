@@ -122,6 +122,13 @@ test("telas do app com dados: acessibilidade, erros e celular", async ({ page })
       problems.push(...(await audit(page, `${scheme} ${route}`)));
     }
   }
+  // Tablet: só a rolagem horizontal (o axe já rodou em desktop e roda no celular abaixo).
+  await page.setViewportSize({ width: 768, height: 1024 });
+  for (const route of routes) {
+    await visit(page, route);
+    if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth))
+      problems.push(`tablet ${route}: rolagem horizontal`);
+  }
   await page.setViewportSize({ width: 360, height: 740 });
   await page.emulateMedia({ colorScheme: "light" });
   for (const route of routes) {

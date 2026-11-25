@@ -82,7 +82,7 @@ export const screens = {
     objective: "Conhecer o usuário, cadastrar a primeira conta e revelar o primeiro IFA.",
     route: "/onboarding",
     group: "onboarding",
-    phase: 3,
+    phase: 1,
   },
 
   inicio: {
@@ -99,7 +99,7 @@ export const screens = {
     objective: "Concentrar alertas e lembretes.",
     route: "/notificacoes",
     group: "inicio",
-    phase: 1,
+    phase: 2,
   },
   busca: {
     number: "15",
@@ -140,7 +140,7 @@ export const screens = {
     objective: "Ver, corrigir ou entender um lançamento.",
     route: "/lancamentos/[id]",
     group: "fluxo",
-    phase: 1,
+    phase: 2,
   },
   recorrencias: {
     number: "22",
@@ -148,7 +148,7 @@ export const screens = {
     objective: "Gerenciar o que se repete: salário, aluguel, assinaturas.",
     route: "/fluxo/recorrencias",
     group: "fluxo",
-    phase: 1,
+    phase: 2,
   },
   categorias: {
     number: "23",
@@ -173,7 +173,7 @@ export const screens = {
     objective: "Acompanhar o extrato e a evolução de uma conta.",
     route: "/contas/[id]",
     group: "contas-cartoes",
-    phase: 1,
+    phase: 2,
   },
   cartoes: {
     number: "27",
@@ -189,7 +189,7 @@ export const screens = {
     objective: "Entender e conferir cada fatura.",
     route: "/cartoes/[id]",
     group: "contas-cartoes",
-    phase: 1,
+    phase: 2,
   },
 
   planejar: {
@@ -198,7 +198,7 @@ export const screens = {
     objective: "Reunir tudo o que olha para o futuro.",
     route: "/planejar",
     group: "planejamento",
-    phase: 2,
+    phase: 1,
   },
   orcamento: {
     number: "32",
@@ -214,7 +214,7 @@ export const screens = {
     objective: "Se preparar para os gastos que não são mensais.",
     route: "/planejar/provisionamentos",
     group: "planejamento",
-    phase: 2,
+    phase: 1,
   },
   metas: {
     number: "35",
@@ -276,7 +276,7 @@ export const screens = {
 
   "saude-financeira": {
     number: "44",
-    title: "Saúde Financeira",
+    title: "Saúde financeira",
     objective: "Mostrar sua nota financeira, o porquê dela e como melhorar.",
     route: "/saude-financeira",
     group: "inteligencia",
@@ -345,7 +345,7 @@ export const screens = {
     objective: "Proteger sua conta.",
     route: "/configuracoes/seguranca",
     group: "conta",
-    phase: 1,
+    phase: 2,
   },
   "preferencias-notificacao": {
     number: "55",

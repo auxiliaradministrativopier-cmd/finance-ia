@@ -1,6 +1,7 @@
 import { Bell, Search } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { isScreenAvailable } from "@/config/screens";
 import { Logo } from "./logo";
 import { PrivacyToggle } from "./privacy-toggle";
 import { UserMenu } from "./user-menu";
@@ -18,21 +19,25 @@ export function TopBar() {
           <Logo />
         </Link>
         <div className="mr-auto hidden lg:block" />
-        <Link
-          href="/busca"
-          aria-label="Buscar"
-          className={buttonVariants({ variant: "ghost", size: "icon" })}
-        >
-          <Search aria-hidden="true" />
-        </Link>
+        {isScreenAvailable("/busca") ? (
+          <Link
+            href="/busca"
+            aria-label="Buscar"
+            className={buttonVariants({ variant: "ghost", size: "icon" })}
+          >
+            <Search aria-hidden="true" />
+          </Link>
+        ) : null}
         <PrivacyToggle />
-        <Link
-          href="/notificacoes"
-          aria-label="Notificações"
-          className={buttonVariants({ variant: "ghost", size: "icon" })}
-        >
-          <Bell aria-hidden="true" />
-        </Link>
+        {isScreenAvailable("/notificacoes") ? (
+          <Link
+            href="/notificacoes"
+            aria-label="Notificações"
+            className={buttonVariants({ variant: "ghost", size: "icon" })}
+          >
+            <Bell aria-hidden="true" />
+          </Link>
+        ) : null}
         <div className="ml-1">
           <UserMenu />
         </div>

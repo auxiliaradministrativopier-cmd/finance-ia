@@ -1,5 +1,6 @@
 import { ChevronRight, CircleAlert, CircleCheck, Sparkles, TriangleAlert } from "lucide-react";
 import Link from "next/link";
+import { isScreenAvailable } from "@/config/screens";
 import { cn } from "@/lib/cn";
 import type { AlertTone, DashboardData } from "../data/types";
 import { ListCard } from "./list-card";
@@ -29,10 +30,7 @@ export function AlertsList({ data }: { data: DashboardData }) {
           const Icon = tone.icon;
           return (
             <li key={alert.id}>
-              <Link
-                href={alert.href}
-                className="-mx-2 flex items-start gap-3 rounded-md px-2 py-2.5 transition-colors hover:bg-surface-sunken"
-              >
+              <AlertLink href={alert.href}>
                 <span
                   className={cn(
                     "flex size-9 shrink-0 items-center justify-center rounded-full",
@@ -48,12 +46,27 @@ export function AlertsList({ data }: { data: DashboardData }) {
                   <span className="text-body font-medium">{alert.title}</span>
                   <span className="text-caption text-ink-muted">{alert.description}</span>
                 </span>
-                <ChevronRight className="mt-2 size-4 shrink-0 text-ink-muted" aria-hidden="true" />
-              </Link>
+              </AlertLink>
             </li>
           );
         })}
       </ul>
     </ListCard>
+  );
+}
+
+/** O alerta leva à tela relacionada; se ela ainda não foi lançada, fica só o texto. */
+function AlertLink({ href, children }: { href: string; children: React.ReactNode }) {
+  if (!isScreenAvailable(href)) {
+    return <div className="-mx-2 flex items-start gap-3 rounded-md px-2 py-2.5">{children}</div>;
+  }
+  return (
+    <Link
+      href={href}
+      className="-mx-2 flex items-start gap-3 rounded-md px-2 py-2.5 transition-colors hover:bg-surface-sunken"
+    >
+      {children}
+      <ChevronRight className="mt-2 size-4 shrink-0 text-ink-muted" aria-hidden="true" />
+    </Link>
   );
 }

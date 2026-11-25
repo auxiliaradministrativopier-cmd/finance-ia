@@ -234,8 +234,9 @@ export function buildLiveDashboard(sources: LiveSources): DashboardData {
       id: "savings",
       tone: "success",
       title: `Você guardou ${formatPercent((income - current.expense.paid) / income)} da renda`,
-      description: "Acima dos 20% recomendados. Que tal direcionar a sobra para uma meta?",
-      href: "/planejar/metas",
+      description:
+        "Acima dos 20% recomendados. Que tal separar parte da sobra para uma despesa futura?",
+      href: "/planejar/provisionamentos",
     });
   }
 

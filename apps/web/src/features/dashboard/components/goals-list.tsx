@@ -1,6 +1,7 @@
 import { Flag, ShieldCheck } from "lucide-react";
 import { Amount } from "@/components/ui/amount";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { isScreenAvailable } from "@/config/screens";
 import { formatMonthLong, formatPercent } from "@/lib/format";
 import type { DashboardData } from "../data/types";
 import { ListCard } from "./list-card";
@@ -14,7 +15,9 @@ export function GoalsList({ data }: { data: DashboardData }) {
     >
       {data.goals.length === 0 ? (
         <p className="py-6 text-center text-body text-ink-muted">
-          Nenhuma meta ainda. Comece pela sua reserva de emergência.
+          {isScreenAvailable("/planejar/metas")
+            ? "Nenhuma meta ainda. Comece pela sua reserva de emergência."
+            : "A criação de metas chega em breve. Enquanto isso, use os provisionamentos para guardar com objetivo."}
         </p>
       ) : null}
       <ul className="flex flex-col">

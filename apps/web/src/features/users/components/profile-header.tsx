@@ -13,7 +13,7 @@ import type { UserProfile } from "@/data/models/user";
 import { useProfileActions } from "../use-profile-actions";
 
 const providerLabels: Record<string, string> = {
-  password: "E-mail e senha",
+  password: "e-mail e senha",
   "google.com": "Google",
   "apple.com": "Apple",
 };
@@ -28,7 +28,7 @@ export function ProfileHeader({ user, profile }: { user: AuthUser; profile: User
 
   const name = profile?.displayName || user.displayName || user.email || "Você";
   const photo = user.photoUrl ?? profile?.photoUrl ?? null;
-  const plan = profile?.plan?.id === "premium" ? "Premium" : "Gratuito";
+  const plan = profile?.plan?.id === "premium" ? "Plano Premium" : "Plano gratuito";
 
   async function onFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -75,7 +75,7 @@ export function ProfileHeader({ user, profile }: { user: AuthUser; profile: User
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="truncate text-h2">{name}</h2>
-          <Badge tone="neutral">Plano {plan}</Badge>
+          <Badge tone="neutral">{plan}</Badge>
         </div>
         <p className="flex items-center gap-1.5 truncate text-body text-ink-muted">
           <Mail className="size-4 shrink-0" aria-hidden="true" />

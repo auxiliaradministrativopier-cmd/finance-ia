@@ -37,8 +37,8 @@ async function renderSignedIn() {
 describe("Perfil", () => {
   it("mostra nome, e-mail, plano e forma de acesso", async () => {
     await renderSignedIn();
-    expect(screen.getByText("Plano Gratuito")).toBeInTheDocument();
-    expect(screen.getByText(/Entra com E-mail e senha/)).toBeInTheDocument();
+    expect(screen.getByText("Plano gratuito")).toBeInTheDocument();
+    expect(screen.getByText(/Entra com e-mail e senha/)).toBeInTheDocument();
     expect(screen.getByLabelText("E-mail")).toHaveValue("juliana@exemplo.com");
   });
 

@@ -27,6 +27,24 @@ test("autenticação: sair, senha errada, entrar, recuperar senha e guardas", as
   // Com sessão, as telas de entrada levam ao app.
   await page.goto("/entrar");
   await page.waitForURL("**/inicio");
+
+  // Sair e entrar de novo na mesma aba (sem recarregar): os dados continuam funcionando.
+  await page.getByRole("button", { name: /menu da conta/i }).click();
+  await page.getByRole("menuitem", { name: "Sair" }).click();
+  await page.waitForURL("**/boas-vindas");
+  await page.getByRole("link", { name: "Já tenho conta" }).click();
+  await page.getByLabel("E-mail").fill(email);
+  await page.getByLabel("Senha", { exact: true }).fill("financas2026");
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  await page.waitForURL("**/inicio");
+  await page.getByRole("link", { name: "Contas" }).first().click();
+  await page.getByRole("button", { name: "Nova conta" }).first().click();
+  await sheet(page).getByLabel("Nome").fill("Carteira");
+  await sheet(page)
+    .getByRole("button", { name: /Criar conta|Salvar/ })
+    .click();
+  await expect(sheet(page)).toBeHidden();
+  await expect(page.getByText("Carteira").first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -144,6 +162,8 @@ test("categorias, provisionamento com aporte, perfil e ocultar valores", async (
   await expect(card).toContainText("R$ 500,00");
 
   await page.goto("/perfil");
+  // O nome digitado no cadastro é o que fica no perfil (não o começo do e-mail).
+  await expect(page.getByLabel("Nome")).toHaveValue("Juliana Souza");
   await page.getByLabel("Nome").fill("Juliana Oliveira");
   await page.getByRole("button", { name: "Salvar nome" }).click();
   await expect(page.getByText("Nome atualizado.")).toBeVisible();

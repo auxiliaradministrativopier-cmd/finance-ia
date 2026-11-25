@@ -46,6 +46,9 @@ export function runUserSetup(user: AuthUser, displayName?: string): Promise<void
     try {
       await ensureUserSetup(await getDataStore(), user, displayName);
     } catch (error) {
+      // Saiu da conta no meio da configuração (o Firestore foi encerrado): ela roda na próxima sessão.
+      const cause = (error as { cause?: { code?: string } }).cause;
+      if (cause?.code === "aborted") return;
       console.error("Não foi possível concluir a configuração inicial do usuário.", error);
     } finally {
       // Só evita execuções simultâneas; depois de terminar, pode rodar de novo (não faz nada se já existe).

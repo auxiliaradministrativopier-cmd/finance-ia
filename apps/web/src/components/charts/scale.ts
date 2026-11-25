@@ -13,7 +13,18 @@ function niceStep(rawStep: number): number {
  * Ex.: niceTicks(0, 1_240_000, 4) → [0, 500_000, 1_000_000, 1_500_000].
  */
 export function niceTicks(min: number, max: number, count = 4): number[] {
-  if (max <= min) max = min + 1;
+  // Série plana (ou quase): sem isso, as marcas ficam a centavos de distância e os rótulos se repetem.
+  const magnitude = Math.max(Math.abs(min), Math.abs(max));
+  if (max - min <= magnitude * 0.01) {
+    if (min >= 0) {
+      min = 0;
+      max = max > 0 ? max * 1.2 : 1;
+    } else {
+      const pad = magnitude * 0.1 || 1;
+      min -= pad;
+      max += pad;
+    }
+  }
   const step = niceStep((max - min) / count);
   const start = Math.floor(min / step) * step;
   const end = Math.ceil(max / step) * step;

@@ -62,9 +62,12 @@ export function AuthProvider({ children, gateway: injected, setup }: AuthProvide
   // Garante a configuração inicial também em sessões já abertas: se o cadastro foi interrompido
   // (aba fechada ou página recarregada antes de gravar), perfil e categorias são criados agora.
   // Uma vez por usuário nesta aba.
+  // Durante um login ou cadastro explícito, quem configura é o próprio fluxo (com o nome digitado).
   const setupDone = useRef<string | null>(null);
+  const signingIn = useRef(false);
   useEffect(() => {
-    if (!user || setupDone.current === user.uid || gateway.mode === "unconfigured") return;
+    if (!user || signingIn.current || setupDone.current === user.uid) return;
+    if (gateway.mode === "unconfigured") return;
     setupDone.current = user.uid;
     void (setup ?? runUserSetup)(user);
   }, [user, gateway.mode, setup]);
@@ -77,16 +80,30 @@ export function AuthProvider({ children, gateway: injected, setup }: AuthProvide
     return next;
   }, []);
 
+  /** Login/cadastro: o gateway já faz a configuração inicial; a abertura de sessão não repete. */
+  const signIn = useCallback(
+    async (action: () => Promise<AuthUser>): Promise<AuthUser> => {
+      signingIn.current = true;
+      try {
+        const next = await action();
+        setupDone.current = next.uid;
+        return applyUser(next) as AuthUser;
+      } finally {
+        signingIn.current = false;
+      }
+    },
+    [applyUser],
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       status,
       user,
       mode: gateway.mode,
       signedOutByUser,
-      signInWithEmail: async (email, password) =>
-        applyUser(await gateway.signInWithEmail(email, password)) as AuthUser,
-      signUpWithEmail: async (input) => applyUser(await gateway.signUpWithEmail(input)) as AuthUser,
-      signInWithGoogle: async () => applyUser(await gateway.signInWithGoogle()) as AuthUser,
+      signInWithEmail: (email, password) => signIn(() => gateway.signInWithEmail(email, password)),
+      signUpWithEmail: (input) => signIn(() => gateway.signUpWithEmail(input)),
+      signInWithGoogle: () => signIn(() => gateway.signInWithGoogle()),
       sendPasswordReset: (email) => gateway.sendPasswordReset(email),
       sendVerificationEmail: () => gateway.sendVerificationEmail(),
       refreshUser: async () => applyUser(await gateway.refreshUser()),
@@ -105,7 +122,7 @@ export function AuthProvider({ children, gateway: injected, setup }: AuthProvide
       getIdToken: (forceRefresh) => gateway.getIdToken(forceRefresh),
       reauthenticate: (password) => gateway.reauthenticate(password),
     }),
-    [status, user, gateway, applyUser, signedOutByUser],
+    [status, user, gateway, applyUser, signIn, signedOutByUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

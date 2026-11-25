@@ -15,6 +15,7 @@ import { cn } from "@/lib/cn";
 import { debtCommitment, monthlySavings, percentChange, savingsRate } from "../data/derived";
 import { formatMonthName, formatPercent, formatSignedPercent, previousMonth } from "@/lib/format";
 import type { DashboardData } from "../data/types";
+import { isScreenAvailable } from "@/config/screens";
 import { useMoneyFormatters } from "@/hooks/use-money-formatters";
 import { StatTile } from "@/components/ui/stat-tile";
 
@@ -127,8 +128,10 @@ export function KpiRow({ data }: { data: DashboardData }) {
             </span>
           ) : data.investments.count > 0 ? (
             `${data.investments.count} ${data.investments.count === 1 ? "investimento ativo" : "investimentos ativos"}`
-          ) : (
+          ) : isScreenAvailable("/patrimonio/investimentos") ? (
             "Nenhum investimento cadastrado."
+          ) : (
+            "O acompanhamento de investimentos chega em breve."
           )
         }
         footer={

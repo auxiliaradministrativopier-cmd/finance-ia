@@ -16,6 +16,7 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { isScreenAvailable } from "./screens";
 
 export interface NavItem {
   label: string;
@@ -28,8 +29,8 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-/** Menu lateral (desktop), agrupado pelos pilares do produto. */
-export const sidebarNavigation: NavGroup[] = [
+/** Menu lateral completo (desktop), agrupado pelos pilares do produto. */
+const fullSidebarNavigation: NavGroup[] = [
   {
     label: "Visão geral",
     items: [
@@ -64,6 +65,11 @@ export const sidebarNavigation: NavGroup[] = [
     ],
   },
 ];
+
+/** Menu lateral exibido: só telas já lançadas (as demais entram quando ficarem prontas). */
+export const sidebarNavigation: NavGroup[] = fullSidebarNavigation
+  .map((group) => ({ ...group, items: group.items.filter((item) => isScreenAvailable(item.href)) }))
+  .filter((group) => group.items.length > 0);
 
 export const accountNavigation: NavItem[] = [
   { label: "Perfil", href: "/perfil", icon: UserRound },
