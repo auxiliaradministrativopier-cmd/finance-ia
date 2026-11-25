@@ -109,37 +109,62 @@ export function PrepaymentSimulator({
               </p>
             )}
           </div>
-          <dl className="grid grid-cols-[auto_1fr_1fr] gap-x-4 gap-y-2 text-body">
-            <span />
-            <dt className="text-caption text-ink-muted">Sem antecipar</dt>
-            <dt className="text-caption text-ink-muted">Antecipando</dt>
-            <dt className="text-ink-muted">Parcela</dt>
-            <dd>
-              <Amount cents={baseline.payment} />
-            </dd>
-            <dd>
-              {paysAll ? (
-                "—"
-              ) : (
-                <Amount
-                  cents={scenario.payment + (strategy === "monthly" ? amount : 0)}
-                  className="font-medium"
-                />
-              )}
-            </dd>
-            <dt className="text-ink-muted">Termina em</dt>
-            <dd>{baseline.endDate ? formatMonthYear(baseline.endDate) : "—"}</dd>
-            <dd className="font-medium">
-              {paysAll ? "Hoje" : scenario.endDate ? formatMonthYear(scenario.endDate) : "—"}
-            </dd>
-            <dt className="text-ink-muted">Juros até o fim</dt>
-            <dd>
-              <Amount cents={baseline.totalInterest} />
-            </dd>
-            <dd>
-              <Amount cents={scenario.totalInterest} className="font-medium" />
-            </dd>
-          </dl>
+          <table className="w-full text-left text-body">
+            <caption className="sr-only">Comparação sem e com antecipação</caption>
+            <thead>
+              <tr className="text-caption text-ink-muted">
+                <td />
+                <th scope="col" className="pb-2 font-normal">
+                  Sem antecipar
+                </th>
+                <th scope="col" className="pb-2 font-normal">
+                  Antecipando
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row" className="py-1 pr-4 font-normal text-ink-muted">
+                  Parcela
+                </th>
+                <td className="py-1">
+                  <Amount cents={baseline.payment} />
+                </td>
+                <td className="py-1">
+                  {paysAll ? (
+                    "—"
+                  ) : (
+                    <Amount
+                      cents={scenario.payment + (strategy === "monthly" ? amount : 0)}
+                      className="font-medium"
+                    />
+                  )}
+                </td>
+              </tr>
+              <tr>
+                <th scope="row" className="py-1 pr-4 font-normal text-ink-muted">
+                  Termina em
+                </th>
+                <td className="py-1">
+                  {baseline.endDate ? formatMonthYear(baseline.endDate) : "—"}
+                </td>
+                <td className="py-1 font-medium">
+                  {paysAll ? "Hoje" : scenario.endDate ? formatMonthYear(scenario.endDate) : "—"}
+                </td>
+              </tr>
+              <tr>
+                <th scope="row" className="py-1 pr-4 font-normal text-ink-muted">
+                  Juros até o fim
+                </th>
+                <td className="py-1">
+                  <Amount cents={baseline.totalInterest} />
+                </td>
+                <td className="py-1">
+                  <Amount cents={scenario.totalInterest} className="font-medium" />
+                </td>
+              </tr>
+            </tbody>
+          </table>
           {lump ? (
             <Button
               variant="secondary"

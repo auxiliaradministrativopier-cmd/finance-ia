@@ -1,7 +1,7 @@
 "use client";
 
 import { Download, LogOut, Settings, UserRound } from "lucide-react";
-import { Avatar } from "@/components/ui/avatar";
+import { Avatar, getInitials } from "@/components/ui/avatar";
 import { DropdownMenu, type DropdownItem } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/features/auth/auth-provider";
@@ -47,7 +47,12 @@ export function UserMenu() {
 
   return (
     <DropdownMenu
-      triggerLabel={`Menu da conta de ${name}`}
+      // Sem foto, as iniciais aparecem no botão: entram no nome acessível (comando de voz, WCAG 2.5.3).
+      triggerLabel={
+        user?.photoUrl
+          ? `Menu da conta de ${name}`
+          : `${getInitials(name)}, menu da conta de ${name}`
+      }
       trigger={<Avatar name={name} src={user?.photoUrl} />}
       header={
         <div className="flex min-w-0 flex-col">
