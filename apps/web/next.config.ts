@@ -1,15 +1,19 @@
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
+// Emuladores locais (desenvolvimento e testes do build de produção). Nunca no build publicado.
+const usesEmulators = process.env.NEXT_PUBLIC_FIREBASE_USE_EMULATORS === "true";
 
 /**
  * Content-Security-Policy: só carrega e conversa com o próprio app, Firebase e Google
- * (login, reCAPTCHA do App Check). Em desenvolvimento libera os emuladores e o recarregamento.
+ * (login, reCAPTCHA do App Check). Com emuladores, libera os endereços locais; em desenvolvimento,
+ * também o recarregamento do Next.
  * Scripts inline continuam permitidos porque o Next.js os usa na hidratação (ver ADR-16).
  */
-const local = isDev
-  ? ["http://127.0.0.1:*", "http://localhost:*", "ws://127.0.0.1:*", "ws://localhost:*"]
-  : [];
+const local =
+  isDev || usesEmulators
+    ? ["http://127.0.0.1:*", "http://localhost:*", "ws://127.0.0.1:*", "ws://localhost:*"]
+    : [];
 const csp = [
   ["default-src", "'self'"],
   [
@@ -29,6 +33,8 @@ const csp = [
     "blob:",
     "https://firebasestorage.googleapis.com",
     "https://*.googleusercontent.com",
+    // Teste de conexão do canal do Firestore (cleardot.gif).
+    "https://www.google.com",
     ...local,
   ],
   ["font-src", "'self'", "data:"],
@@ -56,7 +62,7 @@ const csp = [
   ["base-uri", "'self'"],
   ["form-action", "'self'"],
   ["frame-ancestors", "'none'"],
-  ...(isDev ? [] : [["upgrade-insecure-requests"]]),
+  ...(isDev || usesEmulators ? [] : [["upgrade-insecure-requests"]]),
 ]
   .map((directive) => directive.join(" "))
   .join("; ");

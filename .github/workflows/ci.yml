@@ -62,3 +62,7 @@ jobs:
       - run: pnpm --filter @finance-ia/web e2e
         env:
           CI: "true"
+      - name: Build de produção (PWA, CSP e cabeçalhos)
+        run: pnpm --filter @finance-ia/web e2e:prod
+        env:
+          CI: "true"

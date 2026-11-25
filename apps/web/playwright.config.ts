@@ -9,6 +9,8 @@ const FAKE_AI_PORT = 4010;
 
 export default defineConfig({
   testDir: "./e2e",
+  // O build de produção tem a própria configuração (playwright.prod.config.ts).
+  testIgnore: ["prod/**"],
   timeout: 90_000,
   expect: { timeout: 20_000 },
   fullyParallel: false,
