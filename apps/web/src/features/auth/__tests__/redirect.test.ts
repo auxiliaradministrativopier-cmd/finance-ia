@@ -49,3 +49,21 @@ describe("signInPathWithNext", () => {
     expect(signInPathWithNext("/inicio")).toBe("/entrar");
   });
 });
+
+describe("redirecionamento seguro (open redirect)", () => {
+  it.each([
+    ["tabulação", "/\t/evil.com"],
+    ["quebra de linha", "/\n/evil.com"],
+    ["retorno de carro", "/\r/evil.com"],
+    ["espaço", "/ /evil.com"],
+    ["barra dupla", "//evil.com"],
+    ["barra invertida", "/\\evil.com"],
+    ["URL absoluta", "https://evil.com"],
+  ])("recusa %s", (_label, raw) => {
+    expect(safeNextPath(raw)).toBeNull();
+  });
+
+  it("aceita caminhos internos", () => {
+    expect(safeNextPath("/fluxo/despesas?mes=2026-11")).toBe("/fluxo/despesas?mes=2026-11");
+  });
+});

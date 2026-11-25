@@ -571,3 +571,24 @@ describe("pagamento de fatura e e-mail confirmado", () => {
     await assertSucceeds(setDoc(doc(google, "users", UID, "transactions", "p1"), transaction()));
   });
 });
+
+describe("coleções só do servidor", () => {
+  it("o app não lê nem grava o limite de uso da IA (rateLimits)", async () => {
+    await assertFails(getDoc(doc(owner(), "rateLimits", UID)));
+    await assertFails(setDoc(doc(owner(), "rateLimits", UID), { hits: [] }));
+  });
+
+  it("o dono só lê os dados calculados (IFA, resumos, agregados), nunca grava", async () => {
+    for (const collection of ["healthScores", "monthlySummaries", "aggregates", "netWorthSnapshots"]) {
+      const ref = doc(owner(), "users", UID, collection, "2026-11");
+      await assertSucceeds(getDoc(ref));
+      await assertFails(setDoc(ref, { score: 1000 }));
+      await assertFails(getDoc(doc(intruder(), "users", UID, collection, "2026-11")));
+    }
+  });
+
+  it("coleção desconhecida é negada", async () => {
+    await assertFails(setDoc(doc(owner(), "users", UID, "qualquer", "x"), { a: 1 }));
+    await assertFails(getDoc(doc(owner(), "admin", "config")));
+  });
+});

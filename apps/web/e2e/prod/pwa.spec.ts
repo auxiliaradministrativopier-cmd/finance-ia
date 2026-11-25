@@ -72,3 +72,20 @@ test("cadastro e uso no build de produção, sem violar a CSP; offline abre as t
   await context.setOffline(false);
   expect(errors).toEqual([]);
 });
+
+test("superfície pública do build de produção", async ({ request }) => {
+  // Vitrine de componentes e páginas inexistentes não existem em produção.
+  expect((await request.get("/dev/componentes")).status()).toBe(404);
+  expect((await request.get("/pagina-que-nao-existe")).status()).toBe(404);
+  // Rotas /api só aceitam POST.
+  expect((await request.get("/api/ia/chat")).status()).toBe(405);
+  expect((await request.get("/api/conta/excluir")).status()).toBe(405);
+  // Indexação: só as páginas públicas.
+  const robots = await (await request.get("/robots.txt")).text();
+  expect(robots).toContain("Disallow: /");
+  expect(robots).toContain("Allow: /boas-vindas");
+  const sitemap = await (await request.get("/sitemap.xml")).text();
+  expect(sitemap).toContain("/termos");
+  expect(sitemap).not.toContain("/inicio");
+});
+

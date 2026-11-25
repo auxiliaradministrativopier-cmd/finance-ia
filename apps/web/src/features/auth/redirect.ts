@@ -14,6 +14,9 @@ export const ROUTES = {
  */
 export function safeNextPath(raw: string | null | undefined): string | null {
   if (!raw) return null;
+  // Caracteres de controle e espaços: o navegador remove tabulação e quebra de linha da URL,
+  // e "/<TAB>/site.com" viraria "//site.com" (redirecionamento para fora do app).
+  if (/[\u0000-\u001F\u007F\s]/.test(raw)) return null;
   if (!raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return null;
   if (raw.startsWith(ROUTES.signIn) || raw.startsWith(ROUTES.signUp)) return null;
   return raw;
